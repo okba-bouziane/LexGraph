@@ -80,7 +80,7 @@ Thresholds are enforced in `tests/test_evals.py`.
 |---|---|---|
 | ![UI](docs/screenshots/ui-graph-view.png) | ![Neo4j](docs/screenshots/neo4j-browser.png) | ![Eval](docs/screenshots/eval-report.png) |
 
-The UI shot uses a live LLM answer (`openai/gpt-oss-20b` on Groq); the demo video was recorded the same way.
+The UI shot uses a live LLM answer (`openai/gpt-oss-20b` on Groq); the demo video was recorded without an LLM key (extractive answers), after the daily quota ran out.
 
 ## Setup
 
