@@ -1,0 +1,49 @@
+// README screenshots via puppeteer-core + local Chrome. Stack must be up and the graph ingested.
+const puppeteer = require("/Users/okba/Documents/portflio/job-search/outreach/node_modules/puppeteer-core");
+const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const OUT = __dirname + "/../docs/screenshots/";
+const Q = "Which parent company guarantees the supplier's obligations under the Master Supply Agreement?";
+const CYPHER = "MATCH p=(n:Amendment)-[:AMENDS]->(c:Contract)<-[:GUARANTEES]-(g:Guarantee) MATCH q=(party:Party)-[:PARTY_TO]->(c) OPTIONAL MATCH o=(party)-[:SUBSIDIARY_OF]->(:Party) RETURN p, q, o LIMIT 60";
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+(async () => {
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox"] });
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.goto("http://localhost:8090/", { waitUntil: "networkidle0" });
+  await page.type("#q", Q);
+  await page.select("#retriever", "graph");
+  await page.click("button.primary");
+  await page.waitForSelector("#out:not([hidden])", { timeout: 120000 });
+  await sleep(4000);
+  await page.screenshot({ path: OUT + "ui-graph-view.png" });
+
+  const ev = await browser.newPage();
+  await ev.setViewport({ width: 900, height: 1100 });
+  await ev.goto("file:///tmp/lg_eval.html");
+  await ev.screenshot({ path: OUT + "eval-report.png", fullPage: true });
+
+  const n = await browser.newPage();
+  await n.setViewport({ width: 1440, height: 900 });
+  await n.goto("http://localhost:7475/browser/?connectURL=" + encodeURIComponent("bolt://localhost:7688"), { waitUntil: "networkidle2" });
+  await sleep(3000);
+  await n.evaluate(() => {
+    const set = (el, v) => { const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value"); d.set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true })); };
+    const inputs = [...document.querySelectorAll("input")];
+    const user = inputs.find((i) => i.type === "text" && /user/i.test(i.name + i.id + (i.getAttribute("data-testid") || "")));
+    const pw = inputs.find((i) => i.type === "password");
+    if (user) set(user, "neo4j");
+    if (pw) set(pw, "lexgraph-pass");
+  });
+  await n.keyboard.press("Enter");
+  await sleep(4000);
+  await n.click(".cm-content, .monaco-editor, [data-testid=editor-wrapper]").catch(() => {});
+  await n.keyboard.type(CYPHER);
+  const clickText = (t) => n.evaluate((t) => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === t); if (b) b.click(); return !!b; }, t);
+  await clickText("Dismiss");
+  await sleep(500);
+  await clickText("Run");
+  await sleep(7000);
+  await n.screenshot({ path: OUT + "neo4j-browser.png" });
+  await browser.close();
+})();

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LexGraph</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b1f27; --mute:#657080; --line:#dfe3ea; --accent:#2457d6; --ok:#157347; --warn:#b45309; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171c; --card:#1c2027; --ink:#e8ebf0; --mute:#97a1b0; --line:#2b313b; --accent:#7aa2ff; --ok:#4cc38a; --warn:#f0a35e; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, sans-serif; }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:20px; } header span { color:var(--mute); font-size:13px; }
+  main { display:grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.2fr); gap:16px; padding:16px 24px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding:16px; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  form { display:flex; gap:8px; flex-wrap:wrap; }
+  input[type=text] { flex:1 1 280px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }
+  select, button { padding:10px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); cursor:pointer; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .chip { font-size:12px; padding:4px 10px; border:1px solid var(--line); border-radius:99px; cursor:pointer; color:var(--mute); background:transparent; }
+  .meta { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; font-size:12px; }
+  .tag { padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--mute); }
+  .tag.ok { color:var(--ok); border-color:var(--ok); } .tag.warn { color:var(--warn); border-color:var(--warn); }
+  #answer { white-space:pre-wrap; margin:6px 0 0; }
+  h2 { font-size:14px; margin:16px 0 6px; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; }
+  .cite { border-left:3px solid var(--line); padding:4px 10px; margin:6px 0; font-size:13px; }
+  .cite b { color:var(--accent); } .cite small { color:var(--mute); }
+  .path { font-family:ui-monospace, monospace; font-size:12px; margin:4px 0; color:var(--mute); word-break:break-word; }
+  #graph { height:520px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--mute); margin-top:8px; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; }
+  #detail { font-size:13px; margin-top:8px; min-height:20px; }
+  .err { color:var(--warn); }
+</style>
+</head>
+<body>
+<header>
+  <h1>LexGraph</h1>
+  <span>Graph RAG over a fictional contract corpus. Sample data, fictional.</span>
+  <span id="status"></span>
+</header>
+<main>
+  <section class="card">
+    <form id="form">
+      <input type="text" id="q" placeholder="Ask about the contracts..." autocomplete="off" required>
+      <select id="retriever" aria-label="Retriever">
+        <option value="auto">auto (flow chooses)</option>
+        <option value="vector">vector only</option>
+        <option value="graph">graph-augmented</option>
+        <option value="hybrid">hybrid</option>
+      </select>
+      <button class="primary" type="submit">Ask</button>
+    </form>
+    <div class="chips" id="chips"></div>
+    <div id="out" hidden>
+      <div class="meta" id="meta"></div>
+      <h2>Answer</h2>
+      <p id="answer"></p>
+      <h2>Graph paths used</h2>
+      <div id="paths"></div>
+      <h2>Citations</h2>
+      <div id="cites"></div>
+    </div>
+    <p id="error" class="err"></p>
+  </section>
+  <section class="card">
+    <h2 style="margin-top:0">Subgraph used</h2>
+    <div id="graph"></div>
+    <div class="legend" id="legend"></div>
+    <div id="detail">Click a node to inspect it.</div>
+  </section>
+</main>
+<script src="vendor/vis-network.min.js"></script>
+<script>
+const API = (new URLSearchParams(location.search)).get("api") || window.LEXGRAPH_API || "http://localhost:8001";
+const COLORS = {Party:"#2457d6", Contract:"#157347", Amendment:"#b45309", Guarantee:"#8a3ffc", Notice:"#c2410c", Policy:"#657080", Memo:"#0e7490"};
+const SAMPLES = [
+  "Which parent company guarantees the supplier's obligations under the Master Supply Agreement?",
+  "How many days does Brightwater Foods now have to pay Calder Packaging invoices under the Master Supply Agreement as amended?",
+  "Which company owns the carrier under the Transport Services Agreement?",
+  "Until when has the term of the Master Supply Agreement been extended?",
+  "How quickly must Tessellate notify Brightwater Foods of a personal data breach?"
+];
+const $ = id => document.getElementById(id);
+let network = null;
+
+$("legend").innerHTML = Object.entries(COLORS).map(([k,c]) => `<span><i class="dot" style="background:${c}"></i>${k}</span>`).join("");
+SAMPLES.forEach(s => { const b = document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=s; b.onclick=()=>{ $("q").value=s; $("form").requestSubmit(); }; $("chips").appendChild(b); });
+
+fetch(API + "/health").then(r => r.json()).then(h => {
+  $("status").textContent = `neo4j ${h.neo4j ? "up" : "down"} | ${h.graph.entities ?? 0} entities | ${h.graph.chunks ?? 0} chunks | LLM ${h.llm_configured ? h.llm_model : "not configured (extractive answers)"}`;
+}).catch(() => { $("status").textContent = "API not reachable at " + API; });
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("error").textContent = ""; $("out").hidden = true;
+  const btn = e.submitter; btn.disabled = true; btn.textContent = "...";
+  try {
+    const r = await fetch(API + "/ask", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({question: $("q").value, retriever: $("retriever").value})});
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    render(await r.json());
+  } catch (err) { $("error").textContent = "Error: " + err.message; }
+  btn.disabled = false; btn.textContent = "Ask";
+});
+
+function render(d) {
+  $("out").hidden = false;
+  $("meta").innerHTML = [`<span class="tag">${esc(d.kind)}-hop</span>`, `<span class="tag">retriever: ${esc(d.retriever)}</span>`,
+    `<span class="tag">${esc(d.mode)} answer</span>`,
+    `<span class="tag ${d.grounded ? "ok" : "warn"}">${d.grounded ? "grounded" : "not grounded"}</span>`].join("");
+  $("answer").textContent = d.answer;
+  $("paths").innerHTML = d.paths.length ? d.paths.map(p => `<div class="path">${esc(p.text)}</div>`).join("") : '<div class="path">none (vector retrieval)</div>';
+  $("cites").innerHTML = d.citations.map(c => `<div class="cite"><b>${esc(c.chunk_id)}</b> <small>score ${c.score} via ${esc(c.via)}</small><br>${esc(c.text.slice(0, 260))}${c.text.length > 260 ? "..." : ""}</div>`).join("");
+  drawGraph(d.subgraph);
+}
+
+function drawGraph(g) {
+  const nodes = g.nodes.map(n => ({id:n.id, label:n.name, title:n.title || n.type, shape: n.type === "Party" ? "ellipse" : "box",
+    color:{background: COLORS[n.type] || "#888", border: n.retrieved ? "#000" : COLORS[n.type] || "#888"},
+    borderWidth: n.retrieved ? 3 : 1, font:{color:"#fff", size:13}, meta:n}));
+  const edges = g.edges.map(e => ({from:e.source, to:e.target, label:e.type + (e.role ? " (" + e.role + ")" : ""), arrows:"to",
+    font:{size:10, align:"middle", color:"#8a93a0", strokeWidth:0}, color:{color:"#8a93a0"}}));
+  const data = {nodes:new vis.DataSet(nodes), edges:new vis.DataSet(edges)};
+  if (network) network.destroy();
+  network = new vis.Network($("graph"), data, {physics:{solver:"forceAtlas2Based", stabilization:{iterations:150}}, interaction:{hover:true}});
+  network.on("click", async p => {
+    if (!p.nodes.length) return;
+    const id = p.nodes[0];
+    $("detail").textContent = "Loading " + id + "...";
+    try {
+      const r = await (await fetch(API + "/graph/entity/" + encodeURIComponent(id))).json();
+      $("detail").innerHTML = `<b>${esc(r.id)}</b> (${esc(r.type)})` + (r.properties.title ? " - " + esc(r.properties.title) : "") +
+        "<br>" + r.neighbours.filter(n => n.type !== "Clause" && n.type !== "Obligation").slice(0, 14).map(n => `${n.outgoing ? "-" : "&lt;-"}[${esc(n.relation)}]${n.outgoing ? "-&gt;" : "-"} ${esc(n.name)}`).join("<br>");
+    } catch (e) { $("detail").textContent = "Could not load entity."; }
+  });
+}
+</script>
+</body>
+</html>
