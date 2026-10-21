@@ -113,7 +113,7 @@ function render(d) {
   $("meta").innerHTML = [`<span class="tag">${esc(d.kind)}-hop</span>`, `<span class="tag">retriever: ${esc(d.retriever)}</span>`,
     `<span class="tag">${esc(d.mode)} answer</span>`,
     `<span class="tag ${d.grounded ? "ok" : "warn"}">${d.grounded ? "grounded" : "not grounded"}</span>`].join("");
-  $("answer").textContent = d.answer;
+  $("answer").textContent = d.answer.replace(/\*\*/g, "").replace(/\u3010/g, "[").replace(/\u3011/g, "]");
   $("paths").innerHTML = d.paths.length ? d.paths.map(p => `<div class="path">${esc(p.text)}</div>`).join("") : '<div class="path">none (vector retrieval)</div>';
   $("cites").innerHTML = d.citations.map(c => `<div class="cite"><b>${esc(c.chunk_id)}</b> <small>score ${c.score} via ${esc(c.via)}</small><br>${esc(c.text.slice(0, 260))}${c.text.length > 260 ? "..." : ""}</div>`).join("");
   drawGraph(d.subgraph);

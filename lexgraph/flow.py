@@ -118,7 +118,7 @@ def build_flow(retriever: Retriever, llm: LLMClient | None = None, llm_check: bo
                 "context does not contain the answer, say so.",
                 f"Question: {state['question']}\n\nContext:\n{ctx}\n\nGraph paths:\n{paths}",
             )
-            cites = list(dict.fromkeys(re.findall(r"\[([A-Za-z0-9-]+#\d+\.\d+)\]", text)))
+            cites = list(dict.fromkeys(re.findall(r"[\[【]([A-Za-z0-9-]+#\d+\.\d+)[\]】]", text)))
             mode = "llm"
         else:
             text, cites = extractive_answer(state["question"], res)

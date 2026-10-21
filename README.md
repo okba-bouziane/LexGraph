@@ -1,5 +1,9 @@
 # LexGraph
 
+[![Demo](docs/demo.gif)](docs/demo.mp4)
+
+[Watch the demo video (MP4)](docs/demo.mp4)
+
 Graph RAG over a small **synthetic** contract corpus, built with LlamaIndex, Neo4j and LangGraph. 22 short, fictional documents (contracts, amendments, guarantees, notices, group-structure memos) are turned into a property graph; questions are answered by a vector baseline, a graph-augmented retriever or a hybrid of both, and the three are compared on a labelled question set with real, reproducible numbers.
 
 > Sample data, fictional. Every company, person and figure in `data/corpus/` was written for this project. Nothing here is legal advice or a real contract.
@@ -76,7 +80,7 @@ Thresholds are enforced in `tests/test_evals.py`.
 |---|---|---|
 | ![UI](docs/screenshots/ui-graph-view.png) | ![Neo4j](docs/screenshots/neo4j-browser.png) | ![Eval](docs/screenshots/eval-report.png) |
 
-The UI shot was taken without an LLM key, so the answer is extractive.
+The UI shot uses a live LLM answer (`openai/gpt-oss-20b` on Groq); the demo video was recorded the same way.
 
 ## Setup
 
