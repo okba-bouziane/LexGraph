@@ -20,9 +20,9 @@ def test_corpus_size_and_labels():
 
 def test_party_and_roles():
     ex = RuleExtractor().extract(DOCS["MSA-001"], REG)
-    assert ("Calder Packaging Ltd", "MSA-001") in rels(ex, "PARTY_TO")
+    assert ("Tassili Emballage SARL", "MSA-001") in rels(ex, "PARTY_TO")
     roles = {r.source: r.properties["role"] for r in ex.relations if r.relation == "PARTY_TO"}
-    assert roles["Calder Packaging Ltd"] == "Supplier"
+    assert roles["Tassili Emballage SARL"] == "Supplier"
 
 
 def test_amendment_and_reference_links_resolve_types():
@@ -35,11 +35,11 @@ def test_amendment_and_reference_links_resolve_types():
 
 def test_ownership_chain():
     ex = RuleExtractor().extract(DOCS["CORP-002"], REG)
-    assert ("Calder Packaging Ltd", "Ashford Industrial Group plc") in rels(ex, "SUBSIDIARY_OF")
+    assert ("Tassili Emballage SARL", "Tafna Industrial Group SPA") in rels(ex, "SUBSIDIARY_OF")
     pct = [
         r.properties["percent"]
         for r in ex.relations
-        if r.source == "Calder Plastics Ltd" and r.relation == "SUBSIDIARY_OF"
+        if r.source == "Tassili Plastiques SARL" and r.relation == "SUBSIDIARY_OF"
     ]
     assert pct == ["60"]
 
@@ -48,18 +48,16 @@ def test_obligation_with_deadline_and_obligee():
     ex = RuleExtractor().extract(DOCS["MSA-001"], REG)
     ob = [e for e in ex.entities if e.type == "Obligation" and "cl.4" in e.name][0]
     assert ob.properties["deadline"] == "30 days"
+    assert any(r.relation == "OBLIGOR" and r.source == ob.name and r.target == "Sahel Agro SPA" for r in ex.relations)
     assert any(
-        r.relation == "OBLIGOR" and r.source == ob.name and r.target == "Brightwater Foods plc" for r in ex.relations
-    )
-    assert any(
-        r.relation == "OBLIGEE" and r.source == ob.name and r.target == "Calder Packaging Ltd" for r in ex.relations
+        r.relation == "OBLIGEE" and r.source == ob.name and r.target == "Tassili Emballage SARL" for r in ex.relations
     )
 
 
 def test_no_bogus_party_from_sentence_fragments():
     ex = RuleExtractor().extract(DOCS["REN-012"], REG)
     parties = {e.name for e in ex.entities if e.type == "Party"}
-    assert parties == {"Brightwater Dairy Ltd", "Northwind Logistics Ltd"}
+    assert parties == {"Sahel Laiterie SARL", "Hoggar Transport SARL"}
 
 
 def test_guarantee_and_termination():
@@ -92,11 +90,11 @@ class ScriptedClient:
         return schema(
             entities=[
                 ExtractedEntity(name="MSA-001", type="Contract"),
-                ExtractedEntity(name="Calder Packaging Ltd", type="Party"),
+                ExtractedEntity(name="Tassili Emballage SARL", type="Party"),
             ],
             relations=[
-                ExtractedRelation(source="Calder Packaging Ltd", relation="PARTY_TO", target="MSA-001"),
-                ExtractedRelation(source="Calder Packaging Ltd", relation="PARTY_TO", target="Nope"),
+                ExtractedRelation(source="Tassili Emballage SARL", relation="PARTY_TO", target="MSA-001"),
+                ExtractedRelation(source="Tassili Emballage SARL", relation="PARTY_TO", target="Nope"),
             ],
         )
 

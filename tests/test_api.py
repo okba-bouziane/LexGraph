@@ -36,11 +36,9 @@ def test_ask_validation(client):
 
 
 def test_entity_endpoint(client):
-    d = client.get("/graph/entity/Calder Packaging Ltd").json()
+    d = client.get("/graph/entity/Tassili Emballage SARL").json()
     assert d["type"] == "Party"
-    assert any(
-        n["relation"] == "SUBSIDIARY_OF" and n["name"] == "Ashford Industrial Group plc" for n in d["neighbours"]
-    )
+    assert any(n["relation"] == "SUBSIDIARY_OF" and n["name"] == "Tafna Industrial Group SPA" for n in d["neighbours"])
     assert client.get("/graph/entity/Nobody Inc").status_code == 404
 
 

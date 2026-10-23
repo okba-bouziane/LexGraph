@@ -13,7 +13,9 @@ from lexgraph.schema import ExtractedEntity, ExtractedRelation, Extraction
 
 ROLE_RE = re.compile(r"^(.*?)\s*\(([^()]+)\)\s*$")
 OWNS_RE = re.compile(r"^(?P<parent>[^.\n]+?) owns (?P<pct>\d+)% of (?P<child>[^.\n]+?)\.\s*$", re.M)
-SHALL_RE = re.compile(r"(?P<obligor>(?:[A-Z][A-Za-z&']*\s+)*(?:Ltd|plc|LP)) shall (?P<what>[^.]+)\.")
+# Company names end with a legal form: Algerian (SPA, SARL, EURL) or UK-style (Ltd, plc, LP).
+LEGAL_FORMS = r"(?:SPA|SARL|EURL|Ltd|plc|LP)"
+SHALL_RE = re.compile(rf"(?P<obligor>(?:[A-Z][A-Za-z&']*\s+)*{LEGAL_FORMS}) shall (?P<what>[^.]+)\.")
 DEADLINE_RE = re.compile(r"within (\d+) (business days|days|hours)")
 SECTION_RE = re.compile(r"^(#{2,3}) (.+)$", re.M)
 

@@ -4,7 +4,7 @@
 
 [Watch the demo video (MP4)](docs/demo.mp4)
 
-Graph RAG over a small **synthetic** contract corpus, built with LlamaIndex, Neo4j and LangGraph. 30 short, fictional documents (contracts, amendments, guarantees, notices, group-structure memos) tell two simple stories (a food company's supply and transport deals, and its cloud-hosting deal with a software group). They are turned into a property graph; questions are answered by a vector baseline, a graph-augmented retriever or a hybrid of both, and the three are compared on a labelled question set with real, reproducible numbers.
+Graph RAG over a small **synthetic** contract corpus, built with LlamaIndex, Neo4j and LangGraph. 30 short, fictional documents (contracts, amendments, guarantees, notices, group-structure memos) tell two simple stories (an Algerian food company's supply and transport deals, and its cloud-hosting deal with a software group; amounts are in DZD). They are turned into a property graph; questions are answered by a vector baseline, a graph-augmented retriever or a hybrid of both, and the three are compared on a labelled question set with real, reproducible numbers.
 
 > Sample data, fictional. Every company, person and figure in `data/corpus/` was written for this project. Nothing here is legal advice or a real contract.
 
@@ -60,12 +60,12 @@ Measured on 39 labelled questions (16 single-hop, 23 multi-hop), k = 5 chunks, g
 
 | Retriever | recall@5 (all) | full@5 (all) | MRR (all) | recall@5 multi-hop | full@5 multi-hop | fact@5 multi-hop |
 |---|---|---|---|---|---|---|
-| vector | 0.833 | 0.692 | 0.889 | 0.717 | 0.478 | 0.739 |
-| graph | 0.923 | 0.846 | 0.894 | 0.870 | 0.739 | 0.565 |
-| hybrid | 0.885 | 0.769 | 0.894 | 0.804 | 0.609 | 0.565 |
+| vector | 0.859 | 0.744 | 0.912 | 0.761 | 0.565 | 0.696 |
+| graph | 0.885 | 0.795 | 0.912 | 0.804 | 0.652 | 0.522 |
+| hybrid | 0.885 | 0.795 | 0.912 | 0.804 | 0.652 | 0.565 |
 
 - recall@5: share of the gold documents (those needed to answer) found in the top-5 chunks; full@5: share of questions where all gold documents were found; MRR: reciprocal rank of the first gold document; fact@5: the gold fact string appears in the top-5 text.
-- On single-hop questions all three reach recall 1.000. The graph retriever's gain is on multi-hop recall and full coverage. Going from 22 to 30 documents lowered every score a little: the new documents are close look-alikes of old ones (a second data processing addendum, a third parent guarantee), so they compete for the top-5 slots.
+- On single-hop questions all three reach recall 1.000. The graph retriever's gain is on multi-hop recall and full coverage. The gain is smaller than it was on the earlier English-named corpus (multi-hop recall 0.87 vs 0.72): after the companies were renamed to Algerian-style names, the group memos that answer ownership questions ("who owns the carrier?") sit 3 hops from the contract and now rank just outside the top 5. The graph structure is unchanged; the English embedding model scores the new names differently.
 - The graph retriever picks the best chunk of each reached document, which spreads the top-5 over more documents but sometimes skips the exact clause holding the fact, so its fact@5 is lower than vector's. Hybrid sits between.
 
 LLM answers (`openai`-compatible endpoint, model `qwen/qwen3.8-27b` on Groq, lexical groundedness check), 31 questions on the earlier 22-document corpus: answer-contains-fact was 0.935 vector, 0.839 graph, 0.903 hybrid (multi-hop: 0.895 for all three). See [evals/report_rules_graph_answers.md](evals/report_rules_graph_answers.md). That run predates two small changes (graph paths shown to the model were capped at 6; extractive/lexical scoring got light stemming), and was not re-run because the free-tier daily token quota was used up. With 31 questions the differences are small; treat them as indicative.
@@ -123,9 +123,30 @@ The embedding model (~130 MB) downloads on first use.
 
 `GET /health`, `POST /ask` (`question`, `retriever` auto/vector/graph/hybrid, `k`), `GET /graph/entity/{name}`, `POST /ingest` (`extractor` rules/llm, `reset`). `/ask` returns the answer, citations (chunk ids and text), graph paths, the subgraph for the UI, and the flow trace.
 
+## Project layout
+
+```
+lexgraph/            Python package
+  corpus.py          read and chunk the Markdown documents
+  embeddings.py      local fastembed model
+  extract/           rule-based and LLM extractors (Pydantic schema in schema.py)
+  ingest.py          build the graph: chunks, entities, relations, provenance
+  graph.py           Neo4j store wrapper and Cypher query builders
+  retrieval.py       vector, graph and hybrid retrievers
+  flow.py            LangGraph query flow
+  llm.py             OpenAI-compatible client with rate-limit handling
+  api.py             FastAPI service
+  evaluation.py      retrieval and answer evals
+ui/                  React + Vite + TypeScript web UI (see ui/README.md)
+data/corpus/         the 30 fictional documents
+evals/               labelled questions and reports
+tests/               pytest suite
+scripts/             demo recording, screenshots, eval HTML
+```
+
 ## Tests and CI
 
-41 pytest tests: extractor, Cypher builders, retrieval against Neo4j, LangGraph flow (including the retry loop with a scripted model), API, and eval thresholds. CI (`.github/workflows/ci.yml`) starts a Neo4j service container and runs ruff, pytest, the retrieval evals and a docker build.
+41 pytest tests and 7 Vitest tests for the web UI. Python: extractor, Cypher builders, retrieval against Neo4j, LangGraph flow (including the retry loop with a scripted model), API, and eval thresholds. CI (`.github/workflows/ci.yml`) starts a Neo4j service container and runs ruff, pytest, the retrieval evals, the UI typecheck, tests and build, and both docker builds.
 
 ## Limitations
 

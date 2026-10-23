@@ -15,7 +15,7 @@ from lexgraph.schema import DOCUMENT_TYPES, TRAVERSAL_RELATIONS
 CHUNK_INDEX = "chunk_embedding"
 DOC_LABELS = " OR ".join(f"d:{t}" for t in DOCUMENT_TYPES)
 HOP_RELS = "|".join(TRAVERSAL_RELATIONS)
-LEGAL_SUFFIX = re.compile(r"\s+(Ltd|plc|LP|Limited)$")
+LEGAL_SUFFIX = re.compile(r"\s+(SPA|SARL|EURL|Ltd|plc|LP|Limited)$")
 
 
 def match_names(name: str, extra: str = "") -> list[str]:

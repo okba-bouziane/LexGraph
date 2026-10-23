@@ -56,7 +56,7 @@ TRAVERSAL_RELATIONS = (
 
 
 class ExtractedEntity(BaseModel):
-    name: str = Field(description="Canonical name, e.g. 'Calder Packaging Ltd' or 'MSA-001'")
+    name: str = Field(description="Canonical name, e.g. 'Tassili Emballage SARL' or 'MSA-001'")
     type: EntityType
     properties: dict[str, str] = Field(default_factory=dict)
 

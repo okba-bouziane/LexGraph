@@ -12,7 +12,7 @@ async function ask(page, q, retriever) {
   await page.click("button.primary");
   // The answer panel is already visible from the previous question, so wait for the request to start first.
   await page.waitForFunction(() => document.querySelector("button.primary").textContent !== "Ask", { timeout: 5000 }).catch(() => {});
-  await page.waitForFunction(() => !document.querySelector("#out").hidden && document.querySelector("button.primary").textContent === "Ask", { timeout: 180000 });
+  await page.waitForFunction(() => document.querySelector("#out") && document.querySelector("button.primary").textContent === "Ask", { timeout: 180000 });
   await sleep(7000);
 }
 
@@ -31,12 +31,12 @@ async function ask(page, q, retriever) {
   await page.goto("http://localhost:8090/", { waitUntil: "networkidle0" });
   const rec = await page.screencast({ path: OUT + "demo.mp4" });
   await sleep(4000);
-  await ask(page, "Which company guarantees Atlas Cloud's obligations under the Cloud Hosting Agreement?", "graph");
-  await ask(page, "What monthly fee does Brightwater Foods now pay Atlas Cloud under the Cloud Hosting Agreement as amended?", "graph");
+  await ask(page, "Which company guarantees Djazair Cloud's obligations under the Cloud Hosting Agreement?", "graph");
+  await ask(page, "What monthly fee does Sahel Agro now pay Djazair Cloud under the Cloud Hosting Agreement as amended?", "graph");
   await page.evaluate(() => window.scrollTo(0, 400));
   await sleep(3000);
   await page.evaluate(() => window.scrollTo(0, 0));
-  await ask(page, "Which parent company owns the carrier that Brightwater Dairy uses under the Transport Services Agreement?", "hybrid");
+  await ask(page, "How many days does Sahel Agro now have to pay Tassili Emballage invoices under the Master Supply Agreement as amended?", "hybrid");
   // The screencast drops the last frames on stop, so nudge the page and hold the final answer for a while.
   for (let i = 0; i < 8; i++) {
     await page.evaluate((y) => window.scrollTo(0, y), i % 2);

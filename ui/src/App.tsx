@@ -1,0 +1,73 @@
+import { Suspense, lazy, useEffect, useState } from "react";
+
+import { AnswerPanel } from "./components/AnswerPanel";
+import { Legend } from "./components/Legend";
+import { NodeDetail } from "./components/NodeDetail";
+import { QuestionForm } from "./components/QuestionForm";
+import { StatusLine } from "./components/StatusLine";
+import { useAsk } from "./hooks/useAsk";
+import { useHealth } from "./hooks/useHealth";
+
+// vis-network is large, so the graph view is loaded in its own chunk after the page is up.
+const GraphView = lazy(() => import("./components/GraphView").then((m) => ({ default: m.GraphView })));
+
+function Logo() {
+  return (
+    <div className="logo" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="5" cy="6" r="2.5" />
+        <circle cx="19" cy="6" r="2.5" />
+        <circle cx="12" cy="18" r="2.5" />
+        <path d="M7.3 7.2 10.6 16M16.7 7.2 13.4 16M7.5 6h9" />
+      </svg>
+    </div>
+  );
+}
+
+export default function App() {
+  const health = useHealth();
+  const { result, error, loading, submit } = useAsk();
+  const [selected, setSelected] = useState<string | null>(null);
+
+  // A new answer clears the node that was selected in the previous graph.
+  useEffect(() => setSelected(null), [result]);
+
+  return (
+    <>
+      <header className="topbar">
+        <div className="brand">
+          <Logo />
+          <div>
+            <h1>LexGraph</h1>
+            <p>
+              Ask about the contracts: LexGraph finds the documents, follows the links between them in a knowledge
+              graph, and answers with sources. Sample data, fictional.
+            </p>
+          </div>
+        </div>
+        <StatusLine state={health} />
+      </header>
+
+      <main>
+        <div className="column">
+          <section className="card" aria-label="Question">
+            <QuestionForm loading={loading} onAsk={submit} />
+            <p id="error" className="err">
+              {error && `Error: ${error}`}
+            </p>
+          </section>
+          {result && <AnswerPanel result={result} />}
+        </div>
+
+        <section className="card sticky" aria-label="Subgraph">
+          <h2>Subgraph used</h2>
+          <Suspense fallback={<div id="graph" />}>
+            <GraphView subgraph={result?.subgraph ?? null} onSelect={setSelected} />
+          </Suspense>
+          <Legend />
+          <NodeDetail id={selected} />
+        </section>
+      </main>
+    </>
+  );
+}

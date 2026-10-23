@@ -2,10 +2,10 @@
  "vector": {
   "all": {
    "n": 39,
-   "recall": 0.833,
-   "full": 0.692,
-   "mrr": 0.889,
-   "fact": 0.846
+   "recall": 0.859,
+   "full": 0.744,
+   "mrr": 0.912,
+   "fact": 0.821
   },
   "single": {
    "n": 16,
@@ -16,10 +16,10 @@
   },
   "multi": {
    "n": 23,
-   "recall": 0.717,
-   "full": 0.478,
-   "mrr": 0.812,
-   "fact": 0.739
+   "recall": 0.761,
+   "full": 0.565,
+   "mrr": 0.851,
+   "fact": 0.696
   },
   "rows": [
    {
@@ -137,8 +137,8 @@
    {
     "id": "M03",
     "kind": "multi",
-    "recall": 0.5,
-    "full": 0.0,
+    "recall": 1.0,
+    "full": 1.0,
     "mrr": 1.0,
     "fact": 1.0
    },
@@ -155,7 +155,7 @@
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 0.3333333333333333,
+    "mrr": 1.0,
     "fact": 0.0
    },
    {
@@ -169,16 +169,16 @@
    {
     "id": "M07",
     "kind": "multi",
-    "recall": 0.5,
-    "full": 0.0,
+    "recall": 1.0,
+    "full": 1.0,
     "mrr": 1.0,
     "fact": 1.0
    },
    {
     "id": "M08",
     "kind": "multi",
-    "recall": 0.5,
-    "full": 0.0,
+    "recall": 1.0,
+    "full": 1.0,
     "mrr": 1.0,
     "fact": 0.0
    },
@@ -209,10 +209,10 @@
    {
     "id": "M12",
     "kind": "multi",
-    "recall": 1.0,
-    "full": 1.0,
+    "recall": 0.5,
+    "full": 0.0,
     "mrr": 1.0,
-    "fact": 1.0
+    "fact": 0.0
    },
    {
     "id": "M13",
@@ -227,7 +227,7 @@
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 1.0,
+    "mrr": 0.5,
     "fact": 0.0
    },
    {
@@ -243,7 +243,7 @@
     "kind": "multi",
     "recall": 1.0,
     "full": 1.0,
-    "mrr": 0.5,
+    "mrr": 1.0,
     "fact": 1.0
    },
    {
@@ -256,6 +256,70 @@
    },
    {
     "id": "M18",
+    "kind": "multi",
+    "recall": 0.5,
+    "full": 0.0,
+    "mrr": 0.25,
+    "fact": 0.0
+   },
+   {
+    "id": "M19",
+    "kind": "multi",
+    "recall": 1.0,
+    "full": 1.0,
+    "mrr": 1.0,
+    "fact": 1.0
+   },
+   {
+    "id": "S13",
+    "kind": "single",
+    "recall": 1.0,
+    "full": 1.0,
+    "mrr": 1.0,
+    "fact": 1.0
+   },
+   {
+    "id": "S14",
+    "kind": "single",
+    "recall": 1.0,
+    "full": 1.0,
+    "mrr": 1.0,
+    "fact": 1.0
+   },
+   {
+    "id": "S15",
+    "kind": "single",
+    "recall": 1.0,
+    "full": 1.0,
+    "mrr": 1.0,
+    "fact": 1.0
+   },
+   {
+    "id": "S16",
+    "kind": "single",
+    "recall": 1.0,
+    "full": 1.0,
+    "mrr": 1.0,
+    "fact": 1.0
+   },
+   {
+    "id": "M20",
+    "kind": "multi",
+    "recall": 1.0,
+    "full": 1.0,
+    "mrr": 1.0,
+    "fact": 1.0
+   },
+   {
+    "id": "M21",
+    "kind": "multi",
+    "recall": 1.0,
+    "full": 1.0,
+    "mrr": 1.0,
+    "fact": 1.0
+   },
+   {
+    "id": "M22",
     "kind": "multi",
     "recall": 0.0,
     "full": 0.0,
@@ -263,75 +327,11 @@
     "fact": 1.0
    },
    {
-    "id": "M19",
-    "kind": "multi",
-    "recall": 1.0,
-    "full": 1.0,
-    "mrr": 1.0,
-    "fact": 1.0
-   },
-   {
-    "id": "S13",
-    "kind": "single",
-    "recall": 1.0,
-    "full": 1.0,
-    "mrr": 1.0,
-    "fact": 1.0
-   },
-   {
-    "id": "S14",
-    "kind": "single",
-    "recall": 1.0,
-    "full": 1.0,
-    "mrr": 1.0,
-    "fact": 1.0
-   },
-   {
-    "id": "S15",
-    "kind": "single",
-    "recall": 1.0,
-    "full": 1.0,
-    "mrr": 1.0,
-    "fact": 1.0
-   },
-   {
-    "id": "S16",
-    "kind": "single",
-    "recall": 1.0,
-    "full": 1.0,
-    "mrr": 1.0,
-    "fact": 1.0
-   },
-   {
-    "id": "M20",
-    "kind": "multi",
-    "recall": 1.0,
-    "full": 1.0,
-    "mrr": 1.0,
-    "fact": 1.0
-   },
-   {
-    "id": "M21",
-    "kind": "multi",
-    "recall": 1.0,
-    "full": 1.0,
-    "mrr": 1.0,
-    "fact": 1.0
-   },
-   {
-    "id": "M22",
-    "kind": "multi",
-    "recall": 0.5,
-    "full": 0.0,
-    "mrr": 0.5,
-    "fact": 0.0
-   },
-   {
     "id": "M23",
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 0.5,
+    "mrr": 1.0,
     "fact": 0.0
    }
   ]
@@ -339,9 +339,9 @@
  "graph": {
   "all": {
    "n": 39,
-   "recall": 0.923,
-   "full": 0.846,
-   "mrr": 0.894,
+   "recall": 0.885,
+   "full": 0.795,
+   "mrr": 0.912,
    "fact": 0.615
   },
   "single": {
@@ -349,14 +349,14 @@
    "recall": 1.0,
    "full": 1.0,
    "mrr": 1.0,
-   "fact": 0.688
+   "fact": 0.75
   },
   "multi": {
    "n": 23,
-   "recall": 0.87,
-   "full": 0.739,
-   "mrr": 0.82,
-   "fact": 0.565
+   "recall": 0.804,
+   "full": 0.652,
+   "mrr": 0.851,
+   "fact": 0.522
   },
   "rows": [
    {
@@ -453,7 +453,7 @@
     "recall": 1.0,
     "full": 1.0,
     "mrr": 1.0,
-    "fact": 1.0
+    "fact": 0.0
    },
    {
     "id": "M01",
@@ -492,16 +492,16 @@
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 0.3333333333333333,
+    "mrr": 1.0,
     "fact": 0.0
    },
    {
     "id": "M06",
     "kind": "multi",
-    "recall": 1.0,
-    "full": 1.0,
+    "recall": 0.5,
+    "full": 0.0,
     "mrr": 0.5,
-    "fact": 1.0
+    "fact": 0.0
    },
    {
     "id": "M07",
@@ -546,10 +546,10 @@
    {
     "id": "M12",
     "kind": "multi",
-    "recall": 1.0,
-    "full": 1.0,
+    "recall": 0.5,
+    "full": 0.0,
     "mrr": 1.0,
-    "fact": 1.0
+    "fact": 0.0
    },
    {
     "id": "M13",
@@ -564,7 +564,7 @@
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 1.0,
+    "mrr": 0.5,
     "fact": 0.0
    },
    {
@@ -580,7 +580,7 @@
     "kind": "multi",
     "recall": 1.0,
     "full": 1.0,
-    "mrr": 0.5,
+    "mrr": 1.0,
     "fact": 1.0
    },
    {
@@ -596,7 +596,7 @@
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 0.2,
+    "mrr": 0.25,
     "fact": 0.0
    },
    {
@@ -613,7 +613,7 @@
     "recall": 1.0,
     "full": 1.0,
     "mrr": 1.0,
-    "fact": 0.0
+    "fact": 1.0
    },
    {
     "id": "S14",
@@ -621,7 +621,7 @@
     "recall": 1.0,
     "full": 1.0,
     "mrr": 1.0,
-    "fact": 0.0
+    "fact": 1.0
    },
    {
     "id": "S15",
@@ -658,17 +658,17 @@
    {
     "id": "M22",
     "kind": "multi",
-    "recall": 0.5,
+    "recall": 0.0,
     "full": 0.0,
-    "mrr": 0.5,
-    "fact": 0.0
+    "mrr": 0.0,
+    "fact": 1.0
    },
    {
     "id": "M23",
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 0.5,
+    "mrr": 1.0,
     "fact": 0.0
    }
   ]
@@ -677,8 +677,8 @@
   "all": {
    "n": 39,
    "recall": 0.885,
-   "full": 0.769,
-   "mrr": 0.894,
+   "full": 0.795,
+   "mrr": 0.912,
    "fact": 0.692
   },
   "single": {
@@ -691,8 +691,8 @@
   "multi": {
    "n": 23,
    "recall": 0.804,
-   "full": 0.609,
-   "mrr": 0.82,
+   "full": 0.652,
+   "mrr": 0.851,
    "fact": 0.565
   },
   "rows": [
@@ -726,7 +726,7 @@
     "recall": 1.0,
     "full": 1.0,
     "mrr": 1.0,
-    "fact": 1.0
+    "fact": 0.0
    },
    {
     "id": "S05",
@@ -811,8 +811,8 @@
    {
     "id": "M03",
     "kind": "multi",
-    "recall": 0.5,
-    "full": 0.0,
+    "recall": 1.0,
+    "full": 1.0,
     "mrr": 1.0,
     "fact": 0.0
    },
@@ -829,7 +829,7 @@
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 0.3333333333333333,
+    "mrr": 1.0,
     "fact": 0.0
    },
    {
@@ -851,8 +851,8 @@
    {
     "id": "M08",
     "kind": "multi",
-    "recall": 0.5,
-    "full": 0.0,
+    "recall": 1.0,
+    "full": 1.0,
     "mrr": 1.0,
     "fact": 0.0
    },
@@ -883,10 +883,10 @@
    {
     "id": "M12",
     "kind": "multi",
-    "recall": 1.0,
-    "full": 1.0,
+    "recall": 0.5,
+    "full": 0.0,
     "mrr": 1.0,
-    "fact": 1.0
+    "fact": 0.0
    },
    {
     "id": "M13",
@@ -901,7 +901,7 @@
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 1.0,
+    "mrr": 0.5,
     "fact": 0.0
    },
    {
@@ -917,7 +917,7 @@
     "kind": "multi",
     "recall": 1.0,
     "full": 1.0,
-    "mrr": 0.5,
+    "mrr": 1.0,
     "fact": 1.0
    },
    {
@@ -933,7 +933,7 @@
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 0.2,
+    "mrr": 0.25,
     "fact": 0.0
    },
    {
@@ -958,7 +958,7 @@
     "recall": 1.0,
     "full": 1.0,
     "mrr": 1.0,
-    "fact": 0.0
+    "fact": 1.0
    },
    {
     "id": "S15",
@@ -995,17 +995,17 @@
    {
     "id": "M22",
     "kind": "multi",
-    "recall": 0.5,
+    "recall": 0.0,
     "full": 0.0,
-    "mrr": 0.5,
-    "fact": 0.0
+    "mrr": 0.0,
+    "fact": 1.0
    },
    {
     "id": "M23",
     "kind": "multi",
     "recall": 0.5,
     "full": 0.0,
-    "mrr": 0.5,
+    "mrr": 1.0,
     "fact": 0.0
    }
   ]

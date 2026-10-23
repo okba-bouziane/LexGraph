@@ -39,5 +39,5 @@ def test_link_entities_is_parameterised():
 
 
 def test_match_names():
-    assert match_names("Calder Packaging Ltd") == ["Calder Packaging Ltd", "Calder Packaging"]
+    assert match_names("Tassili Emballage SARL") == ["Tassili Emballage SARL", "Tassili Emballage"]
     assert "Master Supply Agreement" in match_names("MSA-001", "Master Supply Agreement")

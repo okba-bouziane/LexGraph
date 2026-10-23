@@ -9,7 +9,7 @@ def test_heuristic_kind():
 
 def test_extractive_flow_end_to_end(retriever):
     flow = build_flow(retriever, llm=None)
-    out = ask(flow, "How quickly must Tessellate notify Brightwater Foods of a personal data breach?")
+    out = ask(flow, "How quickly must Zitouna notify Sahel Agro of a personal data breach?")
     assert out["mode"] == "extractive"
     assert "48 hours" in out["answer"]
     assert out["citations"] and out["grounded"] is True
@@ -25,7 +25,7 @@ def test_flow_routes_multi_hop_to_hybrid(retriever):
 
 
 def test_forced_retriever(retriever):
-    out = ask(build_flow(retriever, None), "Who owns Calder Packaging?", retriever="vector")
+    out = ask(build_flow(retriever, None), "Who owns Tassili Emballage?", retriever="vector")
     assert out["retriever"] == "vector"
 
 
@@ -41,7 +41,7 @@ def test_ungrounded_answer_triggers_one_retry(retriever):
             Liar.calls += 1
             return "The moon is made of cheese."
 
-    out = ask(build_flow(retriever, Liar()), "How quickly must Tessellate notify of a data breach?")
+    out = ask(build_flow(retriever, Liar()), "How quickly must Zitouna notify of a data breach?")
     assert Liar.calls == 2 and out["grounded"] is False
     assert out["trace"].count("retrieve: hybrid k=10") == 1
 
