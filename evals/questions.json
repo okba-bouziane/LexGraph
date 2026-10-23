@@ -29,5 +29,13 @@
  {"id":"M16","kind":"multi","question":"To whom must Brightwater Foods pay Calder Packaging invoices since February 2025?","gold_docs":["ASG-013","MSA-001"],"facts":["Orchard Finance Ltd"]},
  {"id":"M17","kind":"multi","question":"How much was paid in the settlement about the contract whose payment terms Amendment 1 changed?","gold_docs":["SET-011","MSA-001-A1"],"facts":["42,000 GBP"]},
  {"id":"M18","kind":"multi","question":"Who is the ultimate parent of the company that assigned its receivables under the Master Supply Agreement?","gold_docs":["ASG-013","CORP-002"],"facts":["Ashford Industrial Group"]},
- {"id":"M19","kind":"multi","question":"Who signed the parent company guarantee covering the contract between Brightwater Dairy and its carrier?","gold_docs":["GUA-004","LOG-002"],"facts":["Rosa Whitlock"]}
+ {"id":"M19","kind":"multi","question":"Who signed the parent company guarantee covering the contract between Brightwater Dairy and its carrier?","gold_docs":["GUA-004","LOG-002"],"facts":["Rosa Whitlock"]},
+ {"id":"S13","kind":"single","question":"What is the liability cap in the Summit Tech Group guarantee for cloud hosting?","gold_docs":["GUA-017"],"facts":["300,000 GBP"]},
+ {"id":"S14","kind":"single","question":"How often does Pixel Data back up the systems hosted by Atlas Cloud?","gold_docs":["SUB-016"],"facts":["daily"]},
+ {"id":"S15","kind":"single","question":"Which data centre are the Brightwater Foods systems moving to?","gold_docs":["NOT-019"],"facts":["Manchester"]},
+ {"id":"S16","kind":"single","question":"Within how many hours must Atlas Cloud report a personal data breach to Brightwater Foods?","gold_docs":["DPA-018"],"facts":["24 hours"]},
+ {"id":"M20","kind":"multi","question":"What monthly fee does Brightwater Foods now pay Atlas Cloud under the Cloud Hosting Agreement as amended?","gold_docs":["CLD-015","CLD-015-A1"],"facts":["10,500 GBP"]},
+ {"id":"M21","kind":"multi","question":"Which company guarantees Atlas Cloud's obligations under the Cloud Hosting Agreement?","gold_docs":["CLD-015","GUA-017"],"facts":["Summit Tech Group"]},
+ {"id":"M22","kind":"multi","question":"Which parent company owns most of the subcontractor that backs up the Brightwater Foods hosted systems?","gold_docs":["SUB-016","CORP-005"],"facts":["Summit Tech Group"]},
+ {"id":"M23","kind":"multi","question":"Which other company does Atlas Cloud's backup subcontractor give IT support to?","gold_docs":["SUB-016","MNT-020"],"facts":["Calder Packaging"]}
 ]

@@ -14,12 +14,17 @@
   main { display:grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.2fr); gap:16px; padding:16px 24px; }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; padding:16px; } }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
-  form { display:flex; gap:8px; flex-wrap:wrap; }
-  input[type=text] { flex:1 1 280px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }
-  select, button { padding:10px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; }
-  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); cursor:pointer; }
-  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
-  .chip { font-size:12px; padding:4px 10px; border:1px solid var(--line); border-radius:99px; cursor:pointer; color:var(--mute); background:transparent; }
+  form { display:flex; flex-direction:column; gap:10px; }
+  textarea#q { width:100%; min-height:96px; resize:vertical; padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui, sans-serif; transition:border-color .15s, box-shadow .15s; }
+  textarea#q:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .row .hint { color:var(--mute); font-size:12px; margin-right:auto; }
+  select, button { padding:11px 16px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); cursor:pointer; font-weight:600; min-width:96px; }
+  button.primary:disabled { opacity:.7; cursor:wait; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .chip { font-size:13px; padding:6px 12px; border:1px solid var(--line); border-radius:99px; cursor:pointer; color:var(--mute); background:transparent; text-align:left; }
+  .chip:hover { color:var(--ink); border-color:var(--accent); }
   .meta { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; font-size:12px; }
   .tag { padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--mute); }
   .tag.ok { color:var(--ok); border-color:var(--ok); } .tag.warn { color:var(--warn); border-color:var(--warn); }
@@ -28,23 +33,26 @@
   .cite { border-left:3px solid var(--line); padding:4px 10px; margin:6px 0; font-size:13px; }
   .cite b { color:var(--accent); } .cite small { color:var(--mute); }
   .path { font-family:ui-monospace, monospace; font-size:12px; margin:4px 0; color:var(--mute); word-break:break-word; }
-  #graph { height:520px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
+  #graph { height:520px; position:relative; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
   .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--mute); margin-top:8px; }
   .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; }
   #detail { font-size:13px; margin-top:8px; min-height:20px; }
   .err { color:var(--warn); }
+  .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--mute); font-size:13px; text-align:center; padding:24px; }
 </style>
 </head>
 <body>
 <header>
   <h1>LexGraph</h1>
-  <span>Graph RAG over a fictional contract corpus. Sample data, fictional.</span>
+  <span>Ask a question about the contracts: LexGraph finds the documents, follows the links between them in a knowledge graph, and answers with sources. Sample data, fictional.</span>
   <span id="status"></span>
 </header>
 <main>
   <section class="card">
     <form id="form">
-      <input type="text" id="q" placeholder="Ask about the contracts..." autocomplete="off" required>
+      <textarea id="q" rows="3" placeholder="Ask about the contracts, e.g. who guarantees the supplier's obligations?" required></textarea>
+      <div class="row">
+      <span class="hint">Enter to ask, Shift+Enter for a new line</span>
       <select id="retriever" aria-label="Retriever">
         <option value="auto">auto (flow chooses)</option>
         <option value="vector">vector only</option>
@@ -52,6 +60,7 @@
         <option value="hybrid">hybrid</option>
       </select>
       <button class="primary" type="submit">Ask</button>
+      </div>
     </form>
     <div class="chips" id="chips"></div>
     <div id="out" hidden>
@@ -67,7 +76,7 @@
   </section>
   <section class="card">
     <h2 style="margin-top:0">Subgraph used</h2>
-    <div id="graph"></div>
+    <div id="graph"><div class="empty">Ask a question to see the entities and relations behind the answer.</div></div>
     <div class="legend" id="legend"></div>
     <div id="detail">Click a node to inspect it.</div>
   </section>
@@ -77,17 +86,19 @@
 const API = (new URLSearchParams(location.search)).get("api") || window.LEXGRAPH_API || "http://localhost:8001";
 const COLORS = {Party:"#2457d6", Contract:"#157347", Amendment:"#b45309", Guarantee:"#8a3ffc", Notice:"#c2410c", Policy:"#657080", Memo:"#0e7490"};
 const SAMPLES = [
+  "Which company guarantees Atlas Cloud's obligations under the Cloud Hosting Agreement?",
+  "What monthly fee does Brightwater Foods now pay Atlas Cloud under the Cloud Hosting Agreement as amended?",
   "Which parent company guarantees the supplier's obligations under the Master Supply Agreement?",
-  "How many days does Brightwater Foods now have to pay Calder Packaging invoices under the Master Supply Agreement as amended?",
   "Which company owns the carrier under the Transport Services Agreement?",
-  "Until when has the term of the Master Supply Agreement been extended?",
-  "How quickly must Tessellate notify Brightwater Foods of a personal data breach?"
+  "Which data centre are the Brightwater Foods systems moving to?"
 ];
 const $ = id => document.getElementById(id);
 let network = null;
 
 $("legend").innerHTML = Object.entries(COLORS).map(([k,c]) => `<span><i class="dot" style="background:${c}"></i>${k}</span>`).join("");
 SAMPLES.forEach(s => { const b = document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=s; b.onclick=()=>{ $("q").value=s; $("form").requestSubmit(); }; $("chips").appendChild(b); });
+
+$("q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("form").requestSubmit(); } });
 
 fetch(API + "/health").then(r => r.json()).then(h => {
   $("status").textContent = `neo4j ${h.neo4j ? "up" : "down"} | ${h.graph.entities ?? 0} entities | ${h.graph.chunks ?? 0} chunks | LLM ${h.llm_configured ? h.llm_model : "not configured (extractive answers)"}`;
@@ -98,11 +109,11 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&l
 $("form").addEventListener("submit", async e => {
   e.preventDefault();
   $("error").textContent = ""; $("out").hidden = true;
-  const btn = e.submitter; btn.disabled = true; btn.textContent = "...";
+  const btn = e.submitter || document.querySelector("button.primary"); btn.disabled = true; btn.textContent = "...";
   try {
     const r = await fetch(API + "/ask", {method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({question: $("q").value, retriever: $("retriever").value})});
-    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
     render(await r.json());
   } catch (err) { $("error").textContent = "Error: " + err.message; }
   btn.disabled = false; btn.textContent = "Ask";

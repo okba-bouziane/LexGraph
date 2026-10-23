@@ -14,7 +14,7 @@ def rels(ex, relation):
 
 
 def test_corpus_size_and_labels():
-    assert 15 <= len(DOCS) <= 25
+    assert 15 <= len(DOCS) <= 35
     assert all("Sample data, fictional" in d.text for d in DOCS.values())
 
 

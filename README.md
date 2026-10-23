@@ -4,7 +4,7 @@
 
 [Watch the demo video (MP4)](docs/demo.mp4)
 
-Graph RAG over a small **synthetic** contract corpus, built with LlamaIndex, Neo4j and LangGraph. 22 short, fictional documents (contracts, amendments, guarantees, notices, group-structure memos) are turned into a property graph; questions are answered by a vector baseline, a graph-augmented retriever or a hybrid of both, and the three are compared on a labelled question set with real, reproducible numbers.
+Graph RAG over a small **synthetic** contract corpus, built with LlamaIndex, Neo4j and LangGraph. 30 short, fictional documents (contracts, amendments, guarantees, notices, group-structure memos) tell two simple stories (a food company's supply and transport deals, and its cloud-hosting deal with a software group). They are turned into a property graph; questions are answered by a vector baseline, a graph-augmented retriever or a hybrid of both, and the three are compared on a labelled question set with real, reproducible numbers.
 
 > Sample data, fictional. Every company, person and figure in `data/corpus/` was written for this project. Nothing here is legal advice or a real contract.
 
@@ -56,21 +56,21 @@ Single-hop questions go to the vector retriever, multi-hop to hybrid; an ungroun
 
 ## Results
 
-Measured on 31 labelled questions (12 single-hop, 19 multi-hop), k = 5 chunks, graph built by the **rule-based extractor** (these committed numbers come from it, not from the LLM extractor). Retrieval metrics need no LLM. Full report: [docs/eval-report.md](docs/eval-report.md).
+Measured on 39 labelled questions (16 single-hop, 23 multi-hop), k = 5 chunks, graph built by the **rule-based extractor** (these committed numbers come from it, not from the LLM extractor). Retrieval metrics need no LLM. Full report: [docs/eval-report.md](docs/eval-report.md).
 
 | Retriever | recall@5 (all) | full@5 (all) | MRR (all) | recall@5 multi-hop | full@5 multi-hop | fact@5 multi-hop |
 |---|---|---|---|---|---|---|
-| vector | 0.839 | 0.677 | 0.901 | 0.737 | 0.474 | 0.789 |
-| graph | 0.952 | 0.903 | 0.901 | 0.921 | 0.842 | 0.579 |
-| hybrid | 0.887 | 0.774 | 0.901 | 0.816 | 0.632 | 0.632 |
+| vector | 0.833 | 0.692 | 0.889 | 0.717 | 0.478 | 0.739 |
+| graph | 0.923 | 0.846 | 0.894 | 0.870 | 0.739 | 0.565 |
+| hybrid | 0.885 | 0.769 | 0.894 | 0.804 | 0.609 | 0.565 |
 
 - recall@5: share of the gold documents (those needed to answer) found in the top-5 chunks; full@5: share of questions where all gold documents were found; MRR: reciprocal rank of the first gold document; fact@5: the gold fact string appears in the top-5 text.
-- On single-hop questions all three reach recall 1.000. The graph retriever's gain is on multi-hop recall and full coverage.
+- On single-hop questions all three reach recall 1.000. The graph retriever's gain is on multi-hop recall and full coverage. Going from 22 to 30 documents lowered every score a little: the new documents are close look-alikes of old ones (a second data processing addendum, a third parent guarantee), so they compete for the top-5 slots.
 - The graph retriever picks the best chunk of each reached document, which spreads the top-5 over more documents but sometimes skips the exact clause holding the fact, so its fact@5 is lower than vector's. Hybrid sits between.
 
-LLM answers (`openai`-compatible endpoint, model `qwen/qwen3.8-27b` on Groq, lexical groundedness check), same graph, 31 questions: answer-contains-fact was 0.935 vector, 0.839 graph, 0.903 hybrid (multi-hop: 0.895 for all three). See [evals/report_rules_graph_answers.md](evals/report_rules_graph_answers.md). That run predates two small changes (graph paths shown to the model were capped at 6; extractive/lexical scoring got light stemming), and was not re-run because the free-tier daily token quota was used up. With 31 questions the differences are small; treat them as indicative.
+LLM answers (`openai`-compatible endpoint, model `qwen/qwen3.8-27b` on Groq, lexical groundedness check), 31 questions on the earlier 22-document corpus: answer-contains-fact was 0.935 vector, 0.839 graph, 0.903 hybrid (multi-hop: 0.895 for all three). See [evals/report_rules_graph_answers.md](evals/report_rules_graph_answers.md). That run predates two small changes (graph paths shown to the model were capped at 6; extractive/lexical scoring got light stemming), and was not re-run because the free-tier daily token quota was used up. With 31 questions the differences are small; treat them as indicative.
 
-The LLM extractor was run once for real (`openai/gpt-oss-120b` on Groq): 132 entities and 267 relations versus 159 and 273 from the rules. A retrieval comparison on that graph is **not** part of the committed numbers (the quota ran out before it could be repeated after a later fix to vector search).
+The LLM extractor was run once for real (`openai/gpt-oss-120b` on Groq) on the earlier 22-document corpus: 132 entities and 267 relations versus 159 and 273 from the rules (the rules now give 215 entities and 384 relations on 30 documents). A retrieval comparison on that graph is **not** part of the committed numbers (the quota ran out before it could be repeated after a later fix to vector search).
 
 Thresholds are enforced in `tests/test_evals.py`.
 
@@ -80,7 +80,7 @@ Thresholds are enforced in `tests/test_evals.py`.
 |---|---|---|
 | ![UI](docs/screenshots/ui-graph-view.png) | ![Neo4j](docs/screenshots/neo4j-browser.png) | ![Eval](docs/screenshots/eval-report.png) |
 
-The UI shot uses a live LLM answer (`openai/gpt-oss-20b` on Groq); the demo video was recorded the same way.
+The UI shot is a frame of the demo video, which uses live LLM answers (`openai/gpt-oss-120b` on Groq).
 
 ## Setup
 
@@ -129,7 +129,7 @@ The embedding model (~130 MB) downloads on first use.
 
 ## Limitations
 
-- Tiny corpus (22 documents, 31 questions) written by the author on the same schema the extractor reads. The rule-based extractor is tuned to this document layout and is a reproducible baseline, not a general contract parser; the question set was written alongside the corpus, so absolute numbers are optimistic.
+- Tiny corpus (30 documents, 39 questions) written by the author on the same schema the extractor reads. The rule-based extractor is tuned to this document layout and is a reproducible baseline, not a general contract parser; the question set was written alongside the corpus, so absolute numbers are optimistic.
 - Retrieval parameters (3 hops, 0.9 decay, 3 seeds) were set once, not tuned or cross-validated. Some multi-hop questions still fail, mostly ownership chains that pass through highly connected party nodes.
 - The graph retriever trades exact-clause precision (fact@5) for document coverage.
 - Without an LLM key the answer step is extractive and the groundedness check is lexical; these are weaker than the LLM path.

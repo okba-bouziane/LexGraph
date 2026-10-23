@@ -10,24 +10,38 @@ async function ask(page, q, retriever) {
   await page.select("#retriever", retriever);
   await sleep(500);
   await page.click("button.primary");
+  // The answer panel is already visible from the previous question, so wait for the request to start first.
+  await page.waitForFunction(() => document.querySelector("button.primary").textContent !== "Ask", { timeout: 5000 }).catch(() => {});
   await page.waitForFunction(() => !document.querySelector("#out").hidden && document.querySelector("button.primary").textContent === "Ask", { timeout: 180000 });
   await sleep(7000);
 }
 
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox"] });
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 800 });
+  // HEADLESS=0 opens a visible window that fills the screen (maximized) and records at that size.
+  const visible = process.env.HEADLESS === "0";
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: visible ? false : "new", defaultViewport: visible ? null : undefined, args: ["--no-sandbox", ...(visible ? ["--start-maximized", "--window-position=0,0", "--window-size=1512,982"] : [])] });
+  const page = (await browser.pages())[0] || (await browser.newPage());
+  if (!visible) await page.setViewport({ width: 1280, height: 800 });
+  else {
+    const cdp = await page.createCDPSession();
+    const { windowId } = await cdp.send("Browser.getWindowForTarget");
+    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "maximized" } });
+    await sleep(1000);
+  }
   await page.goto("http://localhost:8090/", { waitUntil: "networkidle0" });
   const rec = await page.screencast({ path: OUT + "demo.mp4" });
   await sleep(4000);
-  await ask(page, "Which parent company guarantees the supplier's obligations under the Master Supply Agreement?", "vector");
-  await ask(page, "Which parent company guarantees the supplier's obligations under the Master Supply Agreement?", "graph");
+  await ask(page, "Which company guarantees Atlas Cloud's obligations under the Cloud Hosting Agreement?", "graph");
+  await ask(page, "What monthly fee does Brightwater Foods now pay Atlas Cloud under the Cloud Hosting Agreement as amended?", "graph");
   await page.evaluate(() => window.scrollTo(0, 400));
   await sleep(3000);
   await page.evaluate(() => window.scrollTo(0, 0));
-  await ask(page, "Which company owns the carrier under the Transport Services Agreement?", "hybrid");
-  await sleep(5000);
+  await ask(page, "Which parent company owns the carrier that Brightwater Dairy uses under the Transport Services Agreement?", "hybrid");
+  // The screencast drops the last frames on stop, so nudge the page and hold the final answer for a while.
+  for (let i = 0; i < 8; i++) {
+    await page.evaluate((y) => window.scrollTo(0, y), i % 2);
+    await sleep(1000);
+  }
   await rec.stop();
   await browser.close();
 })();

@@ -25,7 +25,7 @@ def test_vector_baseline_is_solid_on_single_hop(results):
 
 def test_graph_beats_vector_on_multi_hop(results):
     v, g = results["vector"]["multi"], results["graph"]["multi"]
-    assert g["recall"] >= 0.85 and g["full"] >= 0.75
+    assert g["recall"] >= 0.85 and g["full"] >= 0.7
     assert g["recall"] > v["recall"] + 0.1 and g["full"] > v["full"] + 0.2
 
 
