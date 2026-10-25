@@ -7,12 +7,17 @@ import pytest
 from lexgraph.graph import GraphDB
 from lexgraph.ingest import ingest
 
+NEO4J_DOWN = "Neo4j is not reachable (start it with `docker compose up -d neo4j`)"
+
 
 @pytest.fixture(scope="session")
 def db():
-    database = GraphDB()
+    try:
+        database = GraphDB()
+    except Exception:  # the store connects in its constructor
+        pytest.skip(NEO4J_DOWN)
     if not database.ping():
-        pytest.skip("Neo4j is not reachable (start it with `docker compose up -d neo4j`)")
+        pytest.skip(NEO4J_DOWN)
     ingest("rules", reset=True, db=database)
     yield database
     database.close()

@@ -50,3 +50,34 @@ def test_lexical_groundedness():
     res = RetrievalResult("vector", [RetrievedChunk("c", "d", "Payment is due within 45 days.", 1.0)])
     assert lexical_grounded("Payment is due within 45 days", res)
     assert not lexical_grounded("Elephants wear purple hats daily", res)
+
+
+class FakeRetriever:
+    """Stands in for the Neo4j-backed retriever so the flow logic runs without a database."""
+
+    def __init__(self, text: str):
+        self.chunk = RetrievedChunk("DOC-1#0.0", "DOC-1", text, 1.0)
+        self.calls: list[tuple[str, int]] = []
+
+    def retrieve(self, question, retriever="hybrid", k=None):
+        self.calls.append((retriever, k))
+        return RetrievalResult(retriever, [self.chunk])
+
+
+def test_flow_without_database_answers_and_cites():
+    fake = FakeRetriever("The hosting company must report a data breach to the customer within 48 hours of discovery.")
+    out = ask(build_flow(fake, llm=None), "Within how many hours must a data breach be reported?", k=3)
+    assert out["mode"] == "extractive" and out["grounded"] is True
+    assert "48 hours" in out["answer"] and out["citations"] == ["DOC-1#0.0"]
+    assert fake.calls == [("vector", 3)]
+
+
+def test_flow_retries_once_with_hybrid_when_ungrounded():
+    class Liar:
+        def chat(self, system, user, temperature=0.0):
+            return "single" if "Classify" in system else ("no" if "supported by" in system else "Invented claim.")
+
+    fake = FakeRetriever("Payment is due within 45 days.")
+    out = ask(build_flow(fake, Liar()), "When is payment due?", k=4)
+    assert fake.calls == [("vector", 4), ("hybrid", 8)]
+    assert out["grounded"] is False and out["mode"] == "llm"

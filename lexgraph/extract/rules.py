@@ -103,7 +103,10 @@ class RuleExtractor:
         self._clauses(doc, parties, ents, rels)
         return Extraction(entities=ents, relations=rels).validated()
 
-    def _clauses(self, doc: Doc, parties: list[str], ents, rels) -> None:
+    def _clauses(
+        self, doc: Doc, parties: list[str], ents: list[ExtractedEntity], rels: list[ExtractedRelation]
+    ) -> None:
+        """Add a Clause per `Clause N` section (and Notice), with the obligations its 'X shall ...' sentences impose."""
         body = doc.text
         marks = list(SECTION_RE.finditer(body))
         for i, m in enumerate(marks):

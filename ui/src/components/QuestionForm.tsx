@@ -64,7 +64,14 @@ export function QuestionForm({ loading, onAsk }: Props) {
             ))}
           </select>
           <button className="primary" type="submit" disabled={loading}>
-            {loading ? "..." : "Ask"}
+            {loading ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                Asking
+              </>
+            ) : (
+              "Ask"
+            )}
           </button>
         </div>
       </form>

@@ -24,13 +24,21 @@ EMBEDDING_DIM = 384
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
+LLM_REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "")  # optional: low | medium | high
 
 # Retrieval
 TOP_K = int(os.getenv("TOP_K", "5"))
 SEED_K = 3  # vector seeds used to start graph expansion
 MAX_HOPS = 3  # relationship hops in the neighbourhood expansion
 HOP_DECAY = 0.9  # score multiplier per hop for chunks reached through the graph
+RRF_K = 60  # reciprocal rank fusion constant used by the hybrid retriever
+MAX_PATHS_SHOWN = 6  # graph paths returned with an answer, shortest first
+MAX_ENTITY_PAIRS = 10  # pairs of named entities connected with shortest-path queries
+VECTOR_OVERSAMPLE = 4  # candidates fetched per requested chunk before exact re-scoring
+VECTOR_MIN_FETCH = 30
+
+MAX_ANSWER_ATTEMPTS = 2  # the query flow retries once, wider, when an answer is not grounded
 
 
 def llm_configured() -> bool:
-    return bool(os.getenv("LLM_API_KEY", LLM_API_KEY))
+    return bool(LLM_API_KEY)

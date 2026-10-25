@@ -1,7 +1,6 @@
 """Thin client for any OpenAI-compatible chat endpoint (Groq, Ollama, OpenAI, ...)."""
 
 import json
-import os
 import re
 import time
 from typing import TypeVar
@@ -28,8 +27,8 @@ class LLMClient:
 
     @staticmethod
     def _extra() -> dict:
-        # Optional, for reasoning models on endpoints that accept it (e.g. Groq gpt-oss: low|medium|high).
-        effort = os.getenv("LLM_REASONING_EFFORT")
+        # For reasoning models on endpoints that accept it (e.g. Groq gpt-oss).
+        effort = config.LLM_REASONING_EFFORT
         return {"extra_body": {"reasoning_effort": effort}} if effort else {}
 
     def _create(self, **kwargs):
@@ -54,7 +53,7 @@ class LLMClient:
         return resp.choices[0].message.content or ""
 
     def structured(self, schema: type[T], system: str, user: str, retries: int = 2) -> T:
-        """Ask for JSON matching `schema`; validate with Pydantic and retry once on failure."""
+        """Ask for JSON matching `schema`; validate with Pydantic and retry (up to `retries` times) on failure."""
         json_schema = schema.model_json_schema()
         prompt = f"{user}\n\nReturn only JSON that matches this JSON Schema:\n{json.dumps(json_schema)}"
         last_error = ""

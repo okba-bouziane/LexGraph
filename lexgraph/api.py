@@ -26,12 +26,14 @@ class IngestRequest(BaseModel):
     reset: bool = True
 
 
-class State:
+class AppState:
+    """Shared resources, opened once at startup."""
+
     db: GraphDB
     retriever: Retriever
 
 
-state = State()
+state = AppState()
 
 
 @asynccontextmanager
@@ -46,7 +48,7 @@ app = FastAPI(title="LexGraph", version="1.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
-def _flow():
+def _build_flow():
     llm = LLMClient() if config.llm_configured() else None
     return build_flow(state.retriever, llm)
 
@@ -54,12 +56,13 @@ def _flow():
 @app.get("/health")
 def health() -> dict:
     ok = state.db.ping()
+    llm_on = config.llm_configured()
     return {
         "status": "ok" if ok else "degraded",
         "neo4j": ok,
         "graph": state.db.counts() if ok else {},
-        "llm_configured": config.llm_configured(),
-        "llm_model": config.LLM_MODEL if config.llm_configured() else None,
+        "llm_configured": llm_on,
+        "llm_model": config.LLM_MODEL if llm_on else None,
         "embedding_model": config.EMBEDDING_MODEL,
     }
 
@@ -67,7 +70,7 @@ def health() -> dict:
 @app.post("/ask")
 def ask_endpoint(req: AskRequest) -> dict:
     try:
-        out = ask(_flow(), req.question, None if req.retriever == "auto" else req.retriever, req.k)
+        out = ask(_build_flow(), req.question, None if req.retriever == "auto" else req.retriever, req.k)
     except Exception as exc:  # surface model/DB failures as 502 instead of a stack trace
         raise HTTPException(502, f"query failed: {exc}") from exc
     res = out["result"]
@@ -91,15 +94,15 @@ def entity(name: str) -> dict:
     rows = state.db.run(*q_entity(name))
     if not rows:
         raise HTTPException(404, f"no entity matching {name!r}")
-    e = rows[0]
-    neighbours = state.db.run(*q_entity_neighbours(e["id"]))
-    return {"id": e["id"], "type": e["type"], "properties": e["properties"], "neighbours": neighbours}
+    found = rows[0]
+    neighbours = state.db.run(*q_entity_neighbours(found["id"]))
+    return {"id": found["id"], "type": found["type"], "properties": found["properties"], "neighbours": neighbours}
 
 
 @app.post("/ingest")
 def ingest_endpoint(req: IngestRequest) -> dict:
     try:
         stats = ingest(req.extractor, reset=req.reset, db=state.db)
-    except Exception as exc:
+    except Exception as exc:  # same reasoning as /ask
         raise HTTPException(502, f"ingest failed: {exc}") from exc
     return stats.as_dict()

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DataSet, Network, type Edge, type Node, type Options } from "vis-network/standalone";
 
 import { COLORS } from "../config";
@@ -6,14 +6,26 @@ import type { Subgraph, SubgraphEdge, SubgraphNode } from "../types";
 
 const FALLBACK_COLOR = "#888";
 
+/** Tracks the OS light/dark setting so the graph is redrawn with matching colours. */
+function useColorScheme(): boolean {
+  const [dark, setDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => setDark(e.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+  return dark;
+}
+
 /** Colours from the CSS theme, so the graph follows light and dark mode. */
 function theme() {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string) => css.getPropertyValue(name).trim();
-  return { panel: v("--card-2"), mute: v("--mute"), ink: v("--ink"), line: v("--line") };
+  return { panel: v("--card-2"), mute: v("--mute"), ink: v("--ink") };
 }
 
-function toVisNode(n: SubgraphNode): Node {
+function toVisNode(n: SubgraphNode, t: ReturnType<typeof theme>): Node {
   const color = COLORS[n.type] || FALLBACK_COLOR;
   return {
     id: n.id,
@@ -24,11 +36,11 @@ function toVisNode(n: SubgraphNode): Node {
     shapeProperties: { borderRadius: 8 },
     color: {
       background: color,
-      border: n.retrieved ? "#ffffff" : color,
-      highlight: { background: color, border: "#ffffff" },
-      hover: { background: color, border: "#ffffff" },
+      border: n.retrieved ? t.ink : color,
+      highlight: { background: color, border: t.ink },
+      hover: { background: color, border: t.ink },
     },
-    borderWidth: n.retrieved ? 3 : 1, // documents whose chunks were retrieved get a white ring
+    borderWidth: n.retrieved ? 3 : 1, // documents whose chunks were retrieved get a ring (theme ink, so it shows in light and dark)
     font: { color: "#fff", size: 14, face: "system-ui, sans-serif" },
     shadow: { enabled: true, color: "rgba(0,0,0,0.25)", size: 8, x: 0, y: 2 },
   };
@@ -62,10 +74,20 @@ const OPTIONS: Options = {
 
 interface Props {
   subgraph: Subgraph | null;
+  loading?: boolean;
   onSelect: (id: string) => void;
 }
 
-function EmptyState() {
+function LoadingState() {
+  return (
+    <div className="empty" role="status">
+      <span className="spinner" aria-hidden="true" />
+      Searching the graph...
+    </div>
+  );
+}
+
+function EmptyState({ noMatches }: { noMatches: boolean }) {
   return (
     <div className="empty">
       <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -74,22 +96,26 @@ function EmptyState() {
         <circle cx="12" cy="18" r="2.5" />
         <path d="M7.3 7.2 10.6 16M16.7 7.2 13.4 16M7.5 6h9" />
       </svg>
-      Ask a question to see the entities and relations behind the answer.
+      {noMatches
+        ? "No entities were retrieved for this question."
+        : "Ask a question to see the entities and relations behind the answer."}
     </div>
   );
 }
 
 /** The entities and relations behind the answer, drawn with vis-network. */
-export function GraphView({ subgraph, onSelect }: Props) {
+export function GraphView({ subgraph, loading = false, onSelect }: Props) {
   const container = useRef<HTMLDivElement>(null);
+  const scheme = useColorScheme();
+  const hasNodes = !!subgraph && subgraph.nodes.length > 0;
 
   useEffect(() => {
-    if (!subgraph || !container.current) return;
+    if (!subgraph || !hasNodes || !container.current) return;
     const t = theme();
     const network = new Network(
       container.current,
       {
-        nodes: new DataSet<Node>(subgraph.nodes.map(toVisNode)),
+        nodes: new DataSet<Node>(subgraph.nodes.map((n) => toVisNode(n, t))),
         edges: new DataSet<Edge>(subgraph.edges.map((e, i) => toVisEdge(e, i, t))),
       },
       OPTIONS,
@@ -99,7 +125,10 @@ export function GraphView({ subgraph, onSelect }: Props) {
       if (params.nodes.length) onSelect(String(params.nodes[0]));
     });
     return () => network.destroy();
-  }, [subgraph, onSelect]);
+  }, [subgraph, hasNodes, scheme, onSelect]);
 
-  return <div id="graph">{subgraph ? <div ref={container} className="canvas" /> : <EmptyState />}</div>;
+  let content = <EmptyState noMatches={!!subgraph} />;
+  if (loading) content = <LoadingState />;
+  else if (hasNodes) content = <div ref={container} className="canvas" />;
+  return <div id="graph">{content}</div>;
 }

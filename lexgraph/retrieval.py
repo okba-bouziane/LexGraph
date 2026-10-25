@@ -10,12 +10,18 @@ from lexgraph.graph import (
     q_chunk_vector_search,
     q_chunks_of_docs,
     q_expand,
+    q_is_document,
     q_link_entities,
     q_nodes_edges,
     q_shortest_path,
 )
 
 RETRIEVERS = ("vector", "graph", "hybrid")
+
+
+def unique(items: list[str]) -> list[str]:
+    """Remove duplicates, keeping first-seen order."""
+    return list(dict.fromkeys(items))
 
 
 @dataclass
@@ -62,11 +68,8 @@ class RetrievalResult:
     seeds: list[str] = field(default_factory=list)
 
     def doc_ids(self) -> list[str]:
-        out: list[str] = []
-        for c in self.chunks:
-            if c.doc_id not in out:
-                out.append(c.doc_id)
-        return out
+        """Documents of the retrieved chunks, in rank order."""
+        return unique([c.doc_id for c in self.chunks])
 
 
 class Retriever:
@@ -74,10 +77,13 @@ class Retriever:
         self.db = db or GraphDB()
         self.embedder = get_embedder()
 
+    def _embed(self, question: str, embedding: list[float] | None) -> list[float]:
+        return embedding or self.embedder.get_query_embedding(question)
+
     # -- vector ----------------------------------------------------------------------
     def vector(self, question: str, k: int | None = None, embedding: list[float] | None = None) -> RetrievalResult:
         k = k or config.TOP_K
-        emb = embedding or self.embedder.get_query_embedding(question)
+        emb = self._embed(question, embedding)
         rows = self.db.run(*q_chunk_vector_search(k, emb))
         chunks = [RetrievedChunk(r["chunk_id"], r["doc_id"], r["text"], float(r["score"])) for r in rows]
         return RetrievalResult("vector", chunks)
@@ -86,11 +92,11 @@ class Retriever:
     def graph(self, question: str, k: int | None = None, embedding: list[float] | None = None) -> RetrievalResult:
         """Vector seeds + entity linking, then Cypher neighbourhood expansion and path queries."""
         k = k or config.TOP_K
-        emb = embedding or self.embedder.get_query_embedding(question)
+        emb = self._embed(question, embedding)
         seed_chunks = self.db.run(*q_chunk_vector_search(config.SEED_K, emb))
-        seed_docs = list(dict.fromkeys(r["doc_id"] for r in seed_chunks))
+        seed_docs = unique([r["doc_id"] for r in seed_chunks])
         linked = [r["id"] for r in self.db.run(*q_link_entities(question))]
-        seeds = list(dict.fromkeys(linked + seed_docs))
+        seeds = unique(linked + seed_docs)
 
         hops: dict[str, int] = {d: 0 for d in seed_docs}
         paths: dict[str, GraphPath] = {}
@@ -106,7 +112,7 @@ class Retriever:
                 hops[d] = 0
 
         path_list: list[GraphPath] = []
-        for a, b in list(combinations(linked, 2))[:10]:
+        for a, b in list(combinations(linked, 2))[: config.MAX_ENTITY_PAIRS]:
             for r in self.db.run(*q_shortest_path(a, b, config.MAX_HOPS)):
                 path_list.append(GraphPath(r["node_ids"], r["edges"]))
                 for n in r["node_ids"]:
@@ -121,7 +127,7 @@ class Retriever:
         top = self._diversify(scored, k)
         used_paths = [paths[c.doc_id] for c in top if c.doc_id in paths and paths[c.doc_id].edges]
         uniq = {p.describe(): p for p in used_paths + path_list}
-        shown = sorted(uniq.values(), key=lambda p: len(p.edges))[:6]  # keep the answer's paths readable
+        shown = sorted(uniq.values(), key=lambda p: len(p.edges))[: config.MAX_PATHS_SHOWN]
         return RetrievalResult("graph", top, shown, seeds)
 
     @staticmethod
@@ -134,20 +140,14 @@ class Retriever:
         return (firsts + rest)[:k] if len(firsts) < k else firsts[:k]
 
     def _is_doc(self, entity_id: str) -> bool:
-        rows = self.db.run(
-            "MATCH (e:__Entity__ {id: $id}) RETURN e:Contract OR e:Amendment OR e:Guarantee "
-            "OR e:Notice OR e:Policy OR e:Memo AS doc",
-            {"id": entity_id},
-        )
-        return bool(rows and rows[0]["doc"])
+        rows = self.db.run(*q_is_document(entity_id))
+        return bool(rows and rows[0]["is_doc"])
 
     # -- hybrid ------------------------------------------------------------------------
-    def hybrid(
-        self, question: str, k: int | None = None, embedding: list[float] | None = None, rrf_k: int = 60
-    ) -> RetrievalResult:
+    def hybrid(self, question: str, k: int | None = None, embedding: list[float] | None = None) -> RetrievalResult:
         """Reciprocal rank fusion of the vector and graph rankings."""
         k = k or config.TOP_K
-        emb = embedding or self.embedder.get_query_embedding(question)
+        emb = self._embed(question, embedding)
         v = self.vector(question, k * 2, emb)
         g = self.graph(question, k * 2, emb)
         fused: dict[str, float] = {}
@@ -155,7 +155,7 @@ class Retriever:
         origin: dict[str, set[str]] = {}
         for name, res in (("vector", v), ("graph", g)):
             for rank, c in enumerate(res.chunks):
-                fused[c.chunk_id] = fused.get(c.chunk_id, 0.0) + 1.0 / (rrf_k + rank + 1)
+                fused[c.chunk_id] = fused.get(c.chunk_id, 0.0) + 1.0 / (config.RRF_K + rank + 1)
                 by_id.setdefault(c.chunk_id, c)
                 origin.setdefault(c.chunk_id, set()).add(name)
         ranked = sorted(fused, key=fused.get, reverse=True)[:k]  # type: ignore[arg-type]
@@ -169,11 +169,13 @@ class Retriever:
     def retrieve(self, question: str, retriever: str = "hybrid", k: int | None = None) -> RetrievalResult:
         if retriever not in RETRIEVERS:
             raise ValueError(f"unknown retriever {retriever!r}; choose from {RETRIEVERS}")
-        return getattr(self, retriever)(question, k)
+        strategies = {"vector": self.vector, "graph": self.graph, "hybrid": self.hybrid}
+        return strategies[retriever](question, k)
 
     # -- subgraph for the UI -------------------------------------------------------------
     def subgraph(self, result: RetrievalResult) -> dict:
-        ids = list(dict.fromkeys([c.doc_id for c in result.chunks] + [n for p in result.paths for n in p.node_ids]))
+        retrieved_docs = set(result.doc_ids())
+        ids = unique(result.doc_ids() + [n for p in result.paths for n in p.node_ids])
         nodes, edges = [], []
         seen_edges: set[tuple] = set()
         for r in self.db.run(*q_nodes_edges(ids)):
@@ -183,7 +185,7 @@ class Retriever:
                     "name": r["name"],
                     "type": r["type"],
                     "title": r.get("title"),
-                    "retrieved": r["id"] in {c.doc_id for c in result.chunks},
+                    "retrieved": r["id"] in retrieved_docs,
                 }
             )
             for e in r["out"]:

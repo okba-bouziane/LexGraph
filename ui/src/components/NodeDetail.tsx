@@ -33,7 +33,7 @@ export function NodeDetail({ id }: { id: string | null }) {
 
   if (state.kind === "idle") return <div id="detail">Click a node to see its links.</div>;
   if (state.kind === "loading") return <div id="detail">Loading {id}...</div>;
-  if (state.kind === "error") return <div id="detail">Could not load entity.</div>;
+  if (state.kind === "error") return <div id="detail" role="alert">Could not load this entity.</div>;
 
   const { entity } = state;
   const neighbours = entity.neighbours
@@ -44,6 +44,7 @@ export function NodeDetail({ id }: { id: string | null }) {
       <div className="title">
         {entity.id} ({entity.type}){entity.properties.title ? ` - ${entity.properties.title}` : ""}
       </div>
+      {neighbours.length === 0 && <p className="none">No linked documents or parties.</p>}
       <ul>
         {neighbours.map((n) => (
           <li key={`${n.relation}-${n.id}-${n.outgoing}`}>

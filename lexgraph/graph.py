@@ -15,7 +15,13 @@ from lexgraph.schema import DOCUMENT_TYPES, TRAVERSAL_RELATIONS
 CHUNK_INDEX = "chunk_embedding"
 DOC_LABELS = " OR ".join(f"d:{t}" for t in DOCUMENT_TYPES)
 HOP_RELS = "|".join(TRAVERSAL_RELATIONS)
+
 LEGAL_SUFFIX = re.compile(r"\s+(SPA|SARL|EURL|Ltd|plc|LP|Limited)$")
+
+
+def _type_of(var: str) -> str:
+    """Cypher expression for a node's entity type, skipping LlamaIndex's internal `__...__` labels."""
+    return f"[l IN labels({var}) WHERE NOT l STARTS WITH '__'][0]"
 
 
 def match_names(name: str, extra: str = "") -> list[str]:
@@ -44,7 +50,7 @@ def q_chunk_vector_search(k: int, embedding: list[float]) -> tuple[str, dict[str
         WITH node, vector.similarity.cosine(node.embedding, $embedding) AS score
         RETURN node.id AS chunk_id, node.text AS text, node.doc_id AS doc_id, score
         ORDER BY score DESC LIMIT $k""",
-        {"k": k, "fetch": max(k * 4, 30), "embedding": embedding},
+        {"k": k, "fetch": max(k * config.VECTOR_OVERSAMPLE, config.VECTOR_MIN_FETCH), "embedding": embedding},
     )
 
 
@@ -104,7 +110,7 @@ def q_nodes_edges(node_ids: list[str]) -> tuple[str, dict[str, Any]]:
         f"""MATCH (n:__Entity__) WHERE n.id IN $ids
         OPTIONAL MATCH (n)-[r:{HOP_RELS}]->(m:__Entity__) WHERE m.id IN $ids
         RETURN n.id AS id, n.name AS name,
-               [l IN labels(n) WHERE NOT l STARTS WITH '__'][0] AS type,
+               {_type_of("n")} AS type,
                n.title AS title,
                collect(CASE WHEN r IS NULL THEN NULL
                    ELSE {{type: type(r), source: n.id, target: m.id, role: r.role}} END) AS out""",
@@ -114,12 +120,12 @@ def q_nodes_edges(node_ids: list[str]) -> tuple[str, dict[str, Any]]:
 
 def q_entity(name: str) -> tuple[str, dict[str, Any]]:
     return (
-        """MATCH (e:__Entity__)
+        f"""MATCH (e:__Entity__)
         WHERE toLower(e.id) = toLower($name)
            OR any(m IN e.match_names WHERE toLower(m) = toLower($name))
         RETURN e.id AS id, e.name AS name,
-               [l IN labels(e) WHERE NOT l STARTS WITH '__'][0] AS type,
-               e{.*, embedding: null, match_names: null} AS properties
+               {_type_of("e")} AS type,
+               e{{.*, embedding: null, match_names: null}} AS properties
         LIMIT 1""",
         {"name": name},
     )
@@ -127,11 +133,18 @@ def q_entity(name: str) -> tuple[str, dict[str, Any]]:
 
 def q_entity_neighbours(entity_id: str) -> tuple[str, dict[str, Any]]:
     return (
-        """MATCH (e:__Entity__ {id: $id})-[r]-(n:__Entity__)
+        f"""MATCH (e:__Entity__ {{id: $id}})-[r]-(n:__Entity__)
         RETURN type(r) AS relation, startNode(r).id = e.id AS outgoing, r.role AS role,
                n.id AS id, n.name AS name,
-               [l IN labels(n) WHERE NOT l STARTS WITH '__'][0] AS type
+               {_type_of("n")} AS type
         ORDER BY relation, name""",
+        {"id": entity_id},
+    )
+
+
+def q_is_document(entity_id: str) -> tuple[str, dict[str, Any]]:
+    return (
+        f"MATCH (d:__Entity__ {{id: $id}}) RETURN {DOC_LABELS} AS is_doc",
         {"id": entity_id},
     )
 
@@ -147,6 +160,8 @@ def q_counts() -> str:
 
 
 class GraphDB:
+    """Thin wrapper over the LlamaIndex Neo4j store: connection, schema setup and raw Cypher."""
+
     def __init__(self) -> None:
         self.store = Neo4jPropertyGraphStore(
             username=config.NEO4J_USER,

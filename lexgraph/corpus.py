@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.schema import Document, TextNode
+from llama_index.core.schema import TextNode
 
 from lexgraph import config
 
@@ -60,7 +60,3 @@ def chunk_doc(doc: Doc) -> list[TextNode]:
                 )
             )
     return nodes
-
-
-def as_documents(docs: list[Doc]) -> list[Document]:
-    return [Document(text=d.text, doc_id=d.doc_id, metadata={"title": d.title}) for d in docs]

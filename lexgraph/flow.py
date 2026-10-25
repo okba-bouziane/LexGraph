@@ -15,7 +15,7 @@ from langgraph.graph import END, START, StateGraph
 
 from lexgraph import config
 from lexgraph.llm import LLMClient
-from lexgraph.retrieval import RetrievalResult, Retriever
+from lexgraph.retrieval import RetrievalResult, Retriever, unique
 
 MULTI_HINTS = re.compile(
     r"\b(parent|owns?|owner|ultimate|ultimately|guarant\w*|amend\w*|renew\w*|since|after|before|"
@@ -29,6 +29,20 @@ STOP = set(
     "the a an of to and or in on for by is are was were be it its that this with as at from what who "
     "which how when must shall under any each".split()
 )
+
+
+CLASSIFY_PROMPT = (
+    "Classify the legal question. Reply with exactly one word: 'single' if one document "
+    "answers it, 'multi' if it needs facts from several linked documents (amendments, "
+    "guarantees, ownership, references)."
+)
+ANSWER_PROMPT = (
+    "Answer the legal question using ONLY the context. Cite the chunk ids in square brackets "
+    "after each claim, e.g. [MSA-001#2.0]. Use the graph paths to connect documents. If the "
+    "context does not contain the answer, say so."
+)
+CHECK_PROMPT = "Reply 'yes' if every claim in the answer is supported by the context, otherwise 'no'. One word."
+CITATION_RE = re.compile(r"[\[【]([A-Za-z0-9-]+#\d+\.\d+)[\]】]")  # models sometimes emit 【 】 brackets
 
 
 class FlowState(TypedDict, total=False):
@@ -74,54 +88,57 @@ def lexical_grounded(answer: str, result: RetrievalResult, threshold: float = 0.
     return bool(ans) and len(ans & ctx) / len(ans) >= threshold
 
 
+def classify_with_llm(llm: LLMClient, question: str) -> str | None:
+    """'single' or 'multi' from the model, or None if the call fails (caller falls back to the heuristic)."""
+    try:
+        return "multi" if "multi" in llm.chat(CLASSIFY_PROMPT, question).strip().lower() else "single"
+    except Exception:
+        return None
+
+
+def answer_with_llm(llm: LLMClient, question: str, result: RetrievalResult) -> tuple[str, list[str]]:
+    context = "\n\n".join(f"[{c.chunk_id}] {c.text}" for c in result.chunks)
+    paths = "\n".join(p.describe() for p in result.paths) or "(none)"
+    text = llm.chat(ANSWER_PROMPT, f"Question: {question}\n\nContext:\n{context}\n\nGraph paths:\n{paths}")
+    return text, unique(CITATION_RE.findall(text))
+
+
+def grounded_with_llm(llm: LLMClient, answer: str, result: RetrievalResult) -> bool:
+    """Ask the model to verify the answer; fall back to the lexical check if the call fails."""
+    context = "\n".join(c.text for c in result.chunks)
+    try:
+        verdict = llm.chat(CHECK_PROMPT, f"Context:\n{context}\n\nAnswer:\n{answer}")
+    except Exception:
+        return lexical_grounded(answer, result)
+    return verdict.strip().lower().startswith("yes")
+
+
 def build_flow(retriever: Retriever, llm: LLMClient | None = None, llm_check: bool = True):
+    """Compile the LangGraph flow. `llm_check=False` keeps the groundedness check lexical (cheaper evals)."""
+
     def classify(state: FlowState) -> FlowState:
-        q = state["question"]
-        kind = heuristic_kind(q)
+        kind = heuristic_kind(state["question"])
         if llm and not state.get("forced_retriever"):  # a forced retriever makes the label moot
-            try:
-                out = (
-                    llm.chat(
-                        "Classify the legal question. Reply with exactly one word: 'single' if one document "
-                        "answers it, 'multi' if it needs facts from several linked documents (amendments, "
-                        "guarantees, ownership, references).",
-                        q,
-                    )
-                    .strip()
-                    .lower()
-                )
-                kind = "multi" if "multi" in out else "single"
-            except Exception:
-                pass
+            kind = classify_with_llm(llm, state["question"]) or kind
         return {"kind": kind, "attempts": 0, "trace": [f"classify: {kind}"]}
 
     def choose(state: FlowState) -> FlowState:
-        r = state.get("forced_retriever") or ("hybrid" if state["kind"] == "multi" else "vector")
-        return {"retriever": r, "trace": state["trace"] + [f"retriever: {r}"]}
+        name = state.get("forced_retriever") or ("hybrid" if state["kind"] == "multi" else "vector")
+        return {"retriever": name, "trace": state["trace"] + [f"retriever: {name}"]}
 
     def retrieve(state: FlowState) -> FlowState:
-        k = state.get("k") or config.TOP_K
-        r = state["retriever"]
+        name, k = state["retriever"], state.get("k") or config.TOP_K
         if state["attempts"] > 0:  # retry once, wider, with the graph
-            r, k = "hybrid", k * 2
-        res = retriever.retrieve(state["question"], r, k)
-        return {"result": res, "retriever": r, "trace": state["trace"] + [f"retrieve: {r} k={k}"]}
+            name, k = "hybrid", k * 2
+        result = retriever.retrieve(state["question"], name, k)
+        return {"result": result, "retriever": name, "trace": state["trace"] + [f"retrieve: {name} k={k}"]}
 
     def answer(state: FlowState) -> FlowState:
-        res = state["result"]
         if llm:
-            ctx = "\n\n".join(f"[{c.chunk_id}] {c.text}" for c in res.chunks)
-            paths = "\n".join(p.describe() for p in res.paths) or "(none)"
-            text = llm.chat(
-                "Answer the legal question using ONLY the context. Cite the chunk ids in square brackets "
-                "after each claim, e.g. [MSA-001#2.0]. Use the graph paths to connect documents. If the "
-                "context does not contain the answer, say so.",
-                f"Question: {state['question']}\n\nContext:\n{ctx}\n\nGraph paths:\n{paths}",
-            )
-            cites = list(dict.fromkeys(re.findall(r"[\[【]([A-Za-z0-9-]+#\d+\.\d+)[\]】]", text)))
+            text, cites = answer_with_llm(llm, state["question"], state["result"])
             mode = "llm"
         else:
-            text, cites = extractive_answer(state["question"], res)
+            text, cites = extractive_answer(state["question"], state["result"])
             mode = "extractive"
         return {
             "answer": text,
@@ -132,33 +149,16 @@ def build_flow(retriever: Retriever, llm: LLMClient | None = None, llm_check: bo
         }
 
     def self_check(state: FlowState) -> FlowState:
-        res = state["result"]
         if llm and llm_check:
-            ctx = "\n".join(c.text for c in res.chunks)
-            try:
-                v = (
-                    llm.chat(
-                        "Reply 'yes' if every claim in the answer is supported by the context, "
-                        "otherwise 'no'. One word.",
-                        f"Context:\n{ctx}\n\nAnswer:\n{state['answer']}",
-                    )
-                    .strip()
-                    .lower()
-                )
-                ok = v.startswith("yes")
-            except Exception:
-                ok = lexical_grounded(state["answer"], res)
+            ok = grounded_with_llm(llm, state["answer"], state["result"])
         else:
-            ok = lexical_grounded(state["answer"], res)
-        return {
-            "grounded": ok,
-            "trace": state["trace"] + [f"self_check: {'grounded' if ok else 'not grounded'}"],
-        }
+            ok = lexical_grounded(state["answer"], state["result"])
+        return {"grounded": ok, "trace": state["trace"] + [f"self_check: {'grounded' if ok else 'not grounded'}"]}
 
     def after_check(state: FlowState) -> str:
-        return END if state["grounded"] or state["attempts"] >= 2 else "retrieve"
+        return END if state["grounded"] or state["attempts"] >= config.MAX_ANSWER_ATTEMPTS else "retrieve"
 
-    g = StateGraph(FlowState)
+    graph = StateGraph(FlowState)
     for name, fn in (
         ("classify", classify),
         ("choose", choose),
@@ -166,14 +166,14 @@ def build_flow(retriever: Retriever, llm: LLMClient | None = None, llm_check: bo
         ("answer", answer),
         ("self_check", self_check),
     ):
-        g.add_node(name, fn)
-    g.add_edge(START, "classify")
-    g.add_edge("classify", "choose")
-    g.add_edge("choose", "retrieve")
-    g.add_edge("retrieve", "answer")
-    g.add_edge("answer", "self_check")
-    g.add_conditional_edges("self_check", after_check, {END: END, "retrieve": "retrieve"})
-    return g.compile()
+        graph.add_node(name, fn)
+    graph.add_edge(START, "classify")
+    graph.add_edge("classify", "choose")
+    graph.add_edge("choose", "retrieve")
+    graph.add_edge("retrieve", "answer")
+    graph.add_edge("answer", "self_check")
+    graph.add_conditional_edges("self_check", after_check, {END: END, "retrieve": "retrieve"})
+    return graph.compile()
 
 
 def ask(flow, question: str, retriever: str | None = None, k: int | None = None) -> FlowState:

@@ -146,7 +146,7 @@ scripts/             demo recording, screenshots, eval HTML
 
 ## Tests and CI
 
-41 pytest tests and 7 Vitest tests for the web UI. Python: extractor, Cypher builders, retrieval against Neo4j, LangGraph flow (including the retry loop with a scripted model), API, and eval thresholds. CI (`.github/workflows/ci.yml`) starts a Neo4j service container and runs ruff, pytest, the retrieval evals, the UI typecheck, tests and build, and both docker builds.
+43 pytest tests and 7 Vitest tests for the web UI. Tests that need Neo4j are skipped when it is not reachable. Python: extractor, Cypher builders, retrieval against Neo4j, LangGraph flow (including the retry loop with a scripted model), API, and eval thresholds. CI (`.github/workflows/ci.yml`) starts a Neo4j service container and runs ruff, pytest, the retrieval evals, the UI typecheck, tests and build, and both docker builds.
 
 ## Limitations
 

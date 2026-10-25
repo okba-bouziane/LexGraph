@@ -17,7 +17,9 @@ import statistics
 from pathlib import Path
 
 from lexgraph import config
-from lexgraph.retrieval import RETRIEVERS, Retriever
+from lexgraph.flow import ask, build_flow
+from lexgraph.llm import LLMClient
+from lexgraph.retrieval import RETRIEVERS, Retriever, unique
 
 QUESTIONS = config.EVAL_DIR / "questions.json"
 
@@ -32,20 +34,14 @@ def norm(s: str) -> str:
 
 def score_question(q: dict, chunks: list, k: int) -> dict:
     top = chunks[:k]
-    docs = []
-    for c in top:
-        if c.doc_id not in docs:
-            docs.append(c.doc_id)
+    docs = {c.doc_id for c in top}
     gold = set(q["gold_docs"])
-    ranked_docs = []
-    for c in chunks:
-        if c.doc_id not in ranked_docs:
-            ranked_docs.append(c.doc_id)
+    ranked_docs = unique([c.doc_id for c in chunks])
     first = next((i for i, d in enumerate(ranked_docs, 1) if d in gold), None)
     ctx = norm(" ".join(c.text for c in top))
     return {
-        "recall": len(gold & set(docs)) / len(gold),
-        "full": float(gold <= set(docs)),
+        "recall": len(gold & docs) / len(gold),
+        "full": float(gold <= docs),
         "mrr": 1.0 / first if first else 0.0,
         "fact": float(all(norm(f) in ctx for f in q["facts"])),
     }
@@ -81,9 +77,6 @@ def run_retrieval(k: int = 5, retriever: Retriever | None = None) -> dict:
 
 def run_answers(results: dict, k: int = 5, retriever: Retriever | None = None) -> dict:
     """Add LLM answer-level scores (requires LLM_API_KEY)."""
-    from lexgraph.flow import ask, build_flow
-    from lexgraph.llm import LLMClient
-
     retriever = retriever or Retriever()
     flow = build_flow(retriever, LLMClient(), llm_check=False)  # lexical groundedness keeps the eval cheap
     questions = {q["id"]: q for q in load_questions()}

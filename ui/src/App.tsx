@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 import { AnswerPanel } from "./components/AnswerPanel";
 import { Legend } from "./components/Legend";
@@ -24,13 +24,30 @@ function Logo() {
   );
 }
 
+function AnswerSkeleton() {
+  return (
+    <div className="card skeleton" role="status" aria-label="Loading answer">
+      <i />
+      <i />
+      <i />
+      <i />
+    </div>
+  );
+}
+
 export default function App() {
   const health = useHealth();
   const { result, error, loading, submit } = useAsk();
   const [selected, setSelected] = useState<string | null>(null);
+  const answerRef = useRef<HTMLDivElement>(null);
 
   // A new answer clears the node that was selected in the previous graph.
   useEffect(() => setSelected(null), [result]);
+
+  // On a narrow screen the answer renders below the fold: bring it into view.
+  useEffect(() => {
+    if (result) answerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [result]);
 
   return (
     <>
@@ -52,17 +69,22 @@ export default function App() {
         <div className="column">
           <section className="card" aria-label="Question">
             <QuestionForm loading={loading} onAsk={submit} />
-            <p id="error" className="err">
-              {error && `Error: ${error}`}
-            </p>
+            {error && (
+              <p id="error" className="err" role="alert">
+                Error: {error}
+              </p>
+            )}
           </section>
-          {result && <AnswerPanel result={result} />}
+          <div ref={answerRef} className="column" aria-live="polite">
+            {loading && <AnswerSkeleton />}
+            {result && <AnswerPanel result={result} />}
+          </div>
         </div>
 
         <section className="card sticky" aria-label="Subgraph">
           <h2>Subgraph used</h2>
           <Suspense fallback={<div id="graph" />}>
-            <GraphView subgraph={result?.subgraph ?? null} onSelect={setSelected} />
+            <GraphView subgraph={result?.subgraph ?? null} loading={loading} onSelect={setSelected} />
           </Suspense>
           <Legend />
           <NodeDetail id={selected} />
