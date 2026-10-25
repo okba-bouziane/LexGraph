@@ -2,9 +2,17 @@ import { CITATION_PREVIEW } from "../config";
 import type { AskResponse, Citation } from "../types";
 import { RelationText } from "./RelationText";
 
-/** Model answers may use **bold** and the 【 】 brackets some models emit; show plain text. */
+/**
+ * Model answers may use **bold**, the 【 】 brackets some models emit, and narrow no-break spaces
+ * inside names (which render almost invisibly); show plain text with normal spacing.
+ */
 export function cleanAnswer(text: string): string {
-  return text.replace(/\*\*/g, "").replace(/【/g, "[").replace(/】/g, "]");
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/【/g, "[")
+    .replace(/】/g, "]")
+    .replace(/[\u00A0\u202F]/g, " ")
+    .replace(/([^\s([])\[/g, "$1 [");
 }
 
 function preview(text: string): string {

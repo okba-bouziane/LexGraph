@@ -23,6 +23,16 @@ describe("AnswerPanel", () => {
     expect(cleanAnswer(result.answer)).toBe("Sahel Agro now pays 1,575,000 DZD [CLD-015-A1#1.0].");
   });
 
+  it("turns narrow no-break spaces into normal spaces and separates a glued citation", () => {
+    expect(cleanAnswer("Djazair\u202FCloud\u00A0SARL fails to meet[GUA-017#2.0].")).toBe(
+      "Djazair Cloud SARL fails to meet [GUA-017#2.0].",
+    );
+  });
+
+  it("separates a citation glued to a closing quote", () => {
+    expect(cleanAnswer('states that "it shall perform"[GUA-017#2.0].')).toBe('states that "it shall perform" [GUA-017#2.0].');
+  });
+
   it("shows the tags, the answer, the path and a shortened citation", () => {
     render(<AnswerPanel result={result} />);
     expect(screen.getByText("multi-hop")).toBeTruthy();
